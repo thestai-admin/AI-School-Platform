@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { chatWithClaude, ChatMessage } from '@/lib/ai/ollama'
+import { chatWithClaude, ChatMessage } from '@/lib/ai/claude'
 import { getChatSystemPrompt } from '@/lib/prompts/chat'
 import { Language } from '@prisma/client'
 

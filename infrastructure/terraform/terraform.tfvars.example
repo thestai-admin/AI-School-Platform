@@ -1,0 +1,28 @@
+# AI School Platform - Terraform Variables Example
+# Copy this file to terraform.tfvars and update with your values
+
+# AWS Configuration
+aws_region  = "ap-south-1"
+environment = "prod"
+
+# Domain (replace with your domain)
+domain_name = "aischool.com"
+
+# Database credentials (use strong passwords!)
+db_password = "change-me-to-a-strong-password"
+
+# Application secrets
+nextauth_secret   = "generate-a-random-32-character-string"
+anthropic_api_key = "sk-ant-your-anthropic-api-key"
+
+# Optional: ACM certificate ARN (after creating in AWS console)
+# acm_certificate_arn = "arn:aws:acm:ap-south-1:123456789:certificate/abc-123"
+
+# ECS scaling (adjust based on expected load)
+desired_count = 2
+min_capacity  = 2
+max_capacity  = 10
+
+# Task resources (adjust based on needs)
+task_cpu    = 512  # 0.5 vCPU
+task_memory = 1024 # 1 GB
