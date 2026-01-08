@@ -1,0 +1,250 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Enums
+enum UserRole {
+  ADMIN
+  TEACHER
+  STUDENT
+  PARENT
+}
+
+enum Language {
+  ENGLISH
+  HINDI
+  MIXED
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+// Models
+model School {
+  id        String   @id @default(cuid())
+  name      String
+  address   String?
+  phone     String?
+  email     String?
+  settings  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users   User[]
+  classes Class[]
+}
+
+model User {
+  id                 String   @id @default(cuid())
+  email              String   @unique
+  password           String
+  name               String
+  phone              String?
+  role               UserRole
+  languagePreference Language @default(ENGLISH)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  schoolId String?
+  school   School? @relation(fields: [schoolId], references: [id])
+
+  // Role-specific relations
+  teacherClasses TeacherClass[]
+  student        Student?
+  parentOf       Student[]      @relation("ParentStudent")
+  lessons        Lesson[]
+  worksheets     Worksheet[]    @relation("CreatedWorksheets")
+
+  // NextAuth
+  accounts Account[]
+  sessions Session[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Class {
+  id        String   @id @default(cuid())
+  name      String
+  grade     Int // 1-10
+  section   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  schoolId String
+  school   School @relation(fields: [schoolId], references: [id])
+
+  students       Student[]
+  teacherClasses TeacherClass[]
+  lessons        Lesson[]
+  worksheets     Worksheet[]
+}
+
+model Subject {
+  id         String @id @default(cuid())
+  name       String
+  gradeLevel Int? // Optional: specific grade level for this subject
+
+  teacherClasses TeacherClass[]
+  lessons        Lesson[]
+  worksheets     Worksheet[]
+  chatHistories  ChatHistory[]
+  progress       StudentProgress[]
+
+  @@unique([name, gradeLevel])
+}
+
+model TeacherClass {
+  id String @id @default(cuid())
+
+  teacherId String
+  teacher   User   @relation(fields: [teacherId], references: [id])
+
+  classId String
+  class   Class  @relation(fields: [classId], references: [id])
+
+  subjectId String
+  subject   Subject @relation(fields: [subjectId], references: [id])
+
+  @@unique([teacherId, classId, subjectId])
+}
+
+model Student {
+  id         String  @id @default(cuid())
+  rollNumber String?
+
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id])
+
+  classId String
+  class   Class  @relation(fields: [classId], references: [id])
+
+  parentId String?
+  parent   User?   @relation("ParentStudent", fields: [parentId], references: [id])
+
+  chatHistories      ChatHistory[]
+  worksheetResponses WorksheetResponse[]
+  progress           StudentProgress[]
+}
+
+model Lesson {
+  id            String   @id @default(cuid())
+  topic         String
+  generatedPlan Json // AI-generated lesson plan
+  language      Language @default(ENGLISH)
+  date          DateTime
+  status        String   @default("draft") // draft, published
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  teacherId String
+  teacher   User   @relation(fields: [teacherId], references: [id])
+
+  classId String
+  class   Class  @relation(fields: [classId], references: [id])
+
+  subjectId String
+  subject   Subject @relation(fields: [subjectId], references: [id])
+}
+
+model Worksheet {
+  id         String     @id @default(cuid())
+  title      String
+  questions  Json // Array of questions with answers
+  difficulty Difficulty @default(MEDIUM)
+  language   Language   @default(ENGLISH)
+  createdAt  DateTime   @default(now())
+
+  createdById String
+  createdBy   User   @relation("CreatedWorksheets", fields: [createdById], references: [id])
+
+  classId String?
+  class   Class?  @relation(fields: [classId], references: [id])
+
+  subjectId String
+  subject   Subject @relation(fields: [subjectId], references: [id])
+
+  responses WorksheetResponse[]
+}
+
+model WorksheetResponse {
+  id          String   @id @default(cuid())
+  answers     Json // Student's answers
+  score       Float?
+  completedAt DateTime @default(now())
+
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id])
+
+  worksheetId String
+  worksheet   Worksheet @relation(fields: [worksheetId], references: [id])
+
+  @@unique([studentId, worksheetId])
+}
+
+model ChatHistory {
+  id        String   @id @default(cuid())
+  messages  Json // Array of {role, content, timestamp}
+  topic     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id])
+
+  subjectId String?
+  subject   Subject? @relation(fields: [subjectId], references: [id])
+}
+
+model StudentProgress {
+  id        String   @id @default(cuid())
+  metrics   Json // {topicsCompleted, averageScore, strengths, weaknesses}
+  updatedAt DateTime @updatedAt
+
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id])
+
+  subjectId String
+  subject   Subject @relation(fields: [subjectId], references: [id])
+
+  @@unique([studentId, subjectId])
+}
