@@ -5,13 +5,23 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Development Commands
 
 ```bash
+# Server
 npm run dev          # Start development server (http://localhost:3000)
 npm run build        # Production build
 npm run lint         # Run ESLint
-npx prisma generate  # Regenerate Prisma client after schema changes
-npx prisma migrate dev  # Run database migrations
-npx prisma studio    # Open Prisma database GUI
-npx tsx prisma/seed.ts  # Seed database with default subjects
+
+# Testing
+npm test             # Run tests in watch mode
+npm run test:run     # Run tests once (CI mode)
+npm run test:coverage  # Run with coverage report
+
+# Database
+docker-compose up -d     # Start local PostgreSQL (port 5433)
+docker-compose down      # Stop PostgreSQL
+npx prisma generate      # Regenerate Prisma client after schema changes
+npx prisma migrate dev   # Run database migrations
+npx prisma studio        # Open Prisma database GUI
+npx tsx prisma/seed.ts   # Seed database with default subjects
 ```
 
 ## Architecture Overview
@@ -37,6 +47,12 @@ Prompt templates are in `src/lib/prompts/` and support three languages: English,
 - `get[Feature]UserPrompt()` - Returns the user message with parameters
 - TypeScript interfaces for structured output (e.g., `LessonPlan`)
 
+**Multi-Tenancy**: Schools are isolated by subdomain (e.g., `school1.domain.com`). The slug is extracted in middleware via `src/lib/tenant.ts` and all data is scoped by `schoolId`.
+
+**Rate Limiting**: API rate limits are configured in `src/lib/rate-limit.ts`. Key limits: AI endpoints (20 req/min), Auth (10 req/min), Login (5 attempts/15 min).
+
+**Security**: Middleware (`src/middleware.ts`) adds security headers (CSP, HSTS, X-Frame-Options, X-Content-Type-Options).
+
 **Database**: PostgreSQL with Prisma ORM using the `pg` adapter (required for Prisma 7+). The Prisma client is singleton-cached in `src/lib/db/prisma.ts` to prevent connection issues in development. Use `docker-compose up -d` to start a local PostgreSQL instance.
 
 ### API Route Patterns
@@ -45,7 +61,9 @@ All API routes are in `src/app/api/`:
 - `api/ai/*` - AI generation endpoints (lesson, worksheet, chat)
 - `api/auth/*` - Authentication (NextAuth handlers, registration)
 - `api/lessons/*`, `api/worksheets/*` - CRUD for content
-- `api/subjects/*` - Subject listing
+- `api/homework/*` - Homework assignment and submissions with AI grading
+- `api/subjects/*`, `api/classes/*` - Subject and class listing
+- `api/health/` - Load balancer health check
 
 All API routes check `getServerSession(authOptions)` for authentication.
 
@@ -54,10 +72,11 @@ All API routes check `getServerSession(authOptions)` for authentication.
 - Schools contain Users and Classes
 - Users have roles and can be: Teachers (assigned to classes via TeacherClass), Students (belong to one class, optionally linked to parent), Parents, or Admins
 - Lessons and Worksheets are created by teachers for specific classes and subjects
+- Homework is assigned by teachers; HomeworkSubmission stores student responses with AI grading (`src/lib/prompts/grading.ts`) and optional teacher review
 - ChatHistory tracks student AI conversations by subject
 - StudentProgress stores per-subject metrics for each student
 
-Key enums from Prisma: `UserRole`, `Language` (ENGLISH/HINDI/MIXED), `Difficulty` (EASY/MEDIUM/HARD)
+Key enums from Prisma: `UserRole`, `Language` (ENGLISH/HINDI/MIXED), `Difficulty` (EASY/MEDIUM/HARD), `HomeworkStatus` (PENDING/SUBMITTED/GRADED/LATE)
 
 ### UI Components
 
