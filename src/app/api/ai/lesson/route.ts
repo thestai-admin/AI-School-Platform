@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
           let defaultSchool = await prisma.school.findFirst()
           if (!defaultSchool) {
             defaultSchool = await prisma.school.create({
-              data: { name: 'Default School' },
+              data: { name: 'Default School', slug: 'default' },
             })
           }
 

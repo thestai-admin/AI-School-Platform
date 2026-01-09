@@ -23,6 +23,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       include: {
         subject: true,
         class: true,
+        createdBy: { select: { schoolId: true } },
       },
     })
 
@@ -30,8 +31,13 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'Worksheet not found' }, { status: 404 })
     }
 
-    // Ensure user owns this worksheet
-    if (worksheet.createdById !== session.user.id && session.user.role !== 'ADMIN') {
+    // Teachers can only view their own worksheets
+    if (session.user.role === 'TEACHER' && worksheet.createdById !== session.user.id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    // Admins can only view worksheets created by users in their school
+    if (session.user.role === 'ADMIN' && worksheet.createdBy.schoolId !== session.user.schoolId) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
@@ -59,13 +65,20 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     // Check worksheet exists and user owns it
     const existingWorksheet = await prisma.worksheet.findUnique({
       where: { id },
+      include: { createdBy: { select: { schoolId: true } } },
     })
 
     if (!existingWorksheet) {
       return NextResponse.json({ error: 'Worksheet not found' }, { status: 404 })
     }
 
-    if (existingWorksheet.createdById !== session.user.id && session.user.role !== 'ADMIN') {
+    // Teachers can only delete their own worksheets
+    if (session.user.role === 'TEACHER' && existingWorksheet.createdById !== session.user.id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    // Admins can only delete worksheets created by users in their school
+    if (session.user.role === 'ADMIN' && existingWorksheet.createdBy.schoolId !== session.user.schoolId) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 

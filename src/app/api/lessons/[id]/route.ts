@@ -30,8 +30,13 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'Lesson not found' }, { status: 404 })
     }
 
-    // Ensure user owns this lesson
-    if (lesson.teacherId !== session.user.id && session.user.role !== 'ADMIN') {
+    // Teachers can only view their own lessons
+    if (session.user.role === 'TEACHER' && lesson.teacherId !== session.user.id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    // Admins can only view lessons in their school
+    if (session.user.role === 'ADMIN' && lesson.class.schoolId !== session.user.schoolId) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
@@ -61,13 +66,20 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     // Check lesson exists and user owns it
     const existingLesson = await prisma.lesson.findUnique({
       where: { id },
+      include: { class: { select: { schoolId: true } } },
     })
 
     if (!existingLesson) {
       return NextResponse.json({ error: 'Lesson not found' }, { status: 404 })
     }
 
-    if (existingLesson.teacherId !== session.user.id && session.user.role !== 'ADMIN') {
+    // Teachers can only update their own lessons
+    if (session.user.role === 'TEACHER' && existingLesson.teacherId !== session.user.id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    // Admins can only update lessons in their school
+    if (session.user.role === 'ADMIN' && existingLesson.class.schoolId !== session.user.schoolId) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
@@ -106,13 +118,20 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     // Check lesson exists and user owns it
     const existingLesson = await prisma.lesson.findUnique({
       where: { id },
+      include: { class: { select: { schoolId: true } } },
     })
 
     if (!existingLesson) {
       return NextResponse.json({ error: 'Lesson not found' }, { status: 404 })
     }
 
-    if (existingLesson.teacherId !== session.user.id && session.user.role !== 'ADMIN') {
+    // Teachers can only delete their own lessons
+    if (session.user.role === 'TEACHER' && existingLesson.teacherId !== session.user.id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    // Admins can only delete lessons in their school
+    if (session.user.role === 'ADMIN' && existingLesson.class.schoolId !== session.user.schoolId) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 

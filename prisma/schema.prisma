@@ -4,8 +4,6 @@ generator client {
 
 datasource db {
   provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
 }
 
 // Enums
@@ -26,6 +24,13 @@ enum Difficulty {
   EASY
   MEDIUM
   HARD
+}
+
+enum HomeworkStatus {
+  PENDING     // Not yet submitted
+  SUBMITTED   // Submitted, awaiting grading
+  GRADED      // AI or teacher has graded
+  LATE        // Submitted after deadline
 }
 
 // Models
@@ -67,10 +72,15 @@ model User {
   parentOf       Student[]      @relation("ParentStudent")
   lessons        Lesson[]
   worksheets     Worksheet[]    @relation("CreatedWorksheets")
+  homeworks      Homework[]     @relation("TeacherHomework")
 
   // NextAuth
   accounts Account[]
   sessions Session[]
+
+  @@index([schoolId])
+  @@index([role])
+  @@index([schoolId, role])
 }
 
 model Account {
@@ -123,6 +133,10 @@ model Class {
   teacherClasses TeacherClass[]
   lessons        Lesson[]
   worksheets     Worksheet[]
+  homeworks      Homework[]
+
+  @@index([schoolId])
+  @@index([schoolId, grade])
 }
 
 model Subject {
@@ -135,6 +149,7 @@ model Subject {
   worksheets     Worksheet[]
   chatHistories  ChatHistory[]
   progress       StudentProgress[]
+  homeworks      Homework[]
 
   @@unique([name, gradeLevel])
 }
@@ -167,9 +182,10 @@ model Student {
   parentId String?
   parent   User?   @relation("ParentStudent", fields: [parentId], references: [id])
 
-  chatHistories      ChatHistory[]
-  worksheetResponses WorksheetResponse[]
-  progress           StudentProgress[]
+  chatHistories       ChatHistory[]
+  worksheetResponses  WorksheetResponse[]
+  progress            StudentProgress[]
+  homeworkSubmissions HomeworkSubmission[]
 }
 
 model Lesson {
@@ -190,6 +206,11 @@ model Lesson {
 
   subjectId String
   subject   Subject @relation(fields: [subjectId], references: [id])
+
+  @@index([teacherId])
+  @@index([classId])
+  @@index([subjectId])
+  @@index([teacherId, status])
 }
 
 model Worksheet {
@@ -210,6 +231,11 @@ model Worksheet {
   subject   Subject @relation(fields: [subjectId], references: [id])
 
   responses WorksheetResponse[]
+  homeworks Homework[]
+
+  @@index([createdById])
+  @@index([subjectId])
+  @@index([classId])
 }
 
 model WorksheetResponse {
@@ -239,6 +265,10 @@ model ChatHistory {
 
   subjectId String?
   subject   Subject? @relation(fields: [subjectId], references: [id])
+
+  @@index([studentId])
+  @@index([subjectId])
+  @@index([studentId, subjectId])
 }
 
 model StudentProgress {
@@ -253,4 +283,63 @@ model StudentProgress {
   subject   Subject @relation(fields: [subjectId], references: [id])
 
   @@unique([studentId, subjectId])
+  @@index([studentId])
+}
+
+// Homework Management System
+model Homework {
+  id           String     @id @default(cuid())
+  title        String
+  instructions String?    @db.Text
+  questions    Json       // Array of {id, question, type, options?, correctAnswer, maxMarks, topic}
+  totalMarks   Int
+  difficulty   Difficulty @default(MEDIUM)
+  language     Language   @default(ENGLISH)
+  dueDate      DateTime
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  // Relations
+  teacherId String
+  teacher   User   @relation("TeacherHomework", fields: [teacherId], references: [id])
+
+  classId String
+  class   Class  @relation(fields: [classId], references: [id])
+
+  subjectId String
+  subject   Subject @relation(fields: [subjectId], references: [id])
+
+  // Optional: Link to existing worksheet
+  worksheetId String?
+  worksheet   Worksheet? @relation(fields: [worksheetId], references: [id])
+
+  submissions HomeworkSubmission[]
+
+  @@index([classId, dueDate])
+  @@index([teacherId])
+}
+
+model HomeworkSubmission {
+  id            String         @id @default(cuid())
+  answers       Json           // Array of {questionId, answer, isCorrect?, marksAwarded?, feedback?}
+  totalScore    Float?
+  percentage    Float?
+  status        HomeworkStatus @default(PENDING)
+  submittedAt   DateTime?
+  gradedAt      DateTime?
+  aiFeedback    Json?          // {overallFeedback, strengths, weaknesses, suggestedTopics}
+  teacherReview String?        @db.Text // Optional teacher comments
+  isLate        Boolean        @default(false)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id])
+
+  homeworkId String
+  homework   Homework @relation(fields: [homeworkId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, homeworkId])
+  @@index([homeworkId, status])
+  @@index([studentId, status])
 }

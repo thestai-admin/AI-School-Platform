@@ -40,7 +40,6 @@ export default function LessonPlannerPage() {
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState('')
   const [saveSuccess, setSaveSuccess] = useState(false)
-  const [savedLessonId, setSavedLessonId] = useState<string | null>(null)
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) {
     setFormData((prev) => ({
@@ -54,7 +53,6 @@ export default function LessonPlannerPage() {
     setError('')
     setLessonPlan(null)
     setSaveSuccess(false)
-    setSavedLessonId(null)
     setIsLoading(true)
 
     try {
@@ -113,7 +111,6 @@ export default function LessonPlannerPage() {
 
       if (data.savedLesson) {
         setSaveSuccess(true)
-        setSavedLessonId(data.savedLesson.id)
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save lesson plan')
