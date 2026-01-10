@@ -14,6 +14,7 @@ npm run lint         # Run ESLint
 npm test             # Run tests in watch mode
 npm run test:run     # Run tests once (CI mode)
 npm run test:coverage  # Run with coverage report
+npx vitest run src/lib/ai/__tests__/claude.test.ts  # Run single test file
 
 # Database
 docker-compose up -d     # Start local PostgreSQL (port 5433)
@@ -38,9 +39,11 @@ This is a Next.js 16 (App Router) education platform for Indian schools (Class 1
 
 **Authentication Flow**: NextAuth.js with JWT strategy and credentials provider. The middleware (`src/middleware.ts`) enforces role-based access on `/teacher/*`, `/student/*`, `/admin/*`, `/parent/*`, and `/dashboard/*` routes - users can only access routes matching their role (admins can access all routes). Session types are extended in `src/lib/auth.ts` to include `role` and `schoolId`. Password utilities (`hashPassword`, `verifyPassword`) are also exported from `src/lib/auth.ts`.
 
-**AI Integration**: All AI features use Claude (`claude-sonnet-4-20250514`) via `src/lib/ai/claude.ts`. Two main functions:
+**AI Integration**: All AI features use Claude via `src/lib/ai/claude.ts` (default model: `claude-sonnet-4-20250514`, configurable via `AI_MODEL` env var). Two main functions:
 - `generateWithClaude()` - Single-turn generation (lessons, worksheets)
 - `chatWithClaude()` - Multi-turn conversations (student chat)
+
+Both functions include exponential backoff retry logic (configurable via `AI_MAX_RETRIES`, default 3). For local development without API key, switch imports to `src/lib/ai/ollama.ts`.
 
 Prompt templates are in `src/lib/prompts/` and support three languages: English, Hindi (Devanagari), and Mixed (Hinglish). Each prompt file exports:
 - `get[Feature]SystemPrompt()` - Returns the system prompt
@@ -53,7 +56,11 @@ Prompt templates are in `src/lib/prompts/` and support three languages: English,
 
 **Security**: Middleware (`src/middleware.ts`) adds security headers (CSP, HSTS, X-Frame-Options, X-Content-Type-Options).
 
-**Database**: PostgreSQL with Prisma ORM using the `pg` adapter (required for Prisma 7+). The Prisma client is singleton-cached in `src/lib/db/prisma.ts` to prevent connection issues in development. Use `docker-compose up -d` to start a local PostgreSQL instance.
+**Database**: PostgreSQL with Prisma ORM using the `pg` adapter (required for Prisma 7+). The Prisma client is singleton-cached in `src/lib/db/prisma.ts` to prevent connection issues in development. Use `docker-compose up -d` to start a local PostgreSQL instance (port 5433).
+
+### Testing
+
+Test files are co-located with source code in `__tests__/` directories (e.g., `src/lib/ai/__tests__/`). Uses Vitest with React Testing Library. Mock external dependencies in tests.
 
 ### API Route Patterns
 
@@ -94,6 +101,14 @@ Use `@/*` to import from `src/*` (configured in tsconfig.json).
 
 Required in `.env`:
 - `DATABASE_URL` - PostgreSQL connection string
+- `DIRECT_URL` - Direct PostgreSQL connection (same as DATABASE_URL for local dev)
 - `NEXTAUTH_SECRET` - JWT signing secret
 - `NEXTAUTH_URL` - App URL (http://localhost:3000 for dev)
 - `ANTHROPIC_API_KEY` - Claude API key
+
+Optional:
+- `AI_MODEL` - Override Claude model (default: `claude-sonnet-4-20250514`)
+- `AI_TIMEOUT` - Request timeout in ms (default: 30000)
+- `AI_MAX_RETRIES` - Max retry attempts (default: 3)
+- `OLLAMA_BASE_URL` - Ollama URL for local AI (default: `http://localhost:11434`)
+- `OLLAMA_MODEL` - Ollama model name (default: `qwen3:8b`)
