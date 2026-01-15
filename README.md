@@ -28,9 +28,22 @@ AI-powered education platform for Indian schools (Class 1-10), designed to work 
 - **Styling**: Tailwind CSS 4
 - **Database**: PostgreSQL with Prisma ORM
 - **Authentication**: NextAuth.js (JWT-based)
-- **AI**: Claude API (Anthropic) / Ollama (local development)
+- **AI**: Qwen3 via Together.ai / Claude API / Ollama
 - **Testing**: Vitest + React Testing Library
-- **Deployment**: AWS (ECS Fargate, RDS, ALB)
+- **Deployment**: Railway (recommended) / AWS / VPS
+
+---
+
+## Quick Deploy to Railway
+
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/new)
+
+See [RAILWAY_DEPLOYMENT.md](./RAILWAY_DEPLOYMENT.md) for full guide.
+
+**Requirements:**
+1. Railway account (free tier available)
+2. Together.ai API key (free $5 credit): [https://api.together.xyz/](https://api.together.xyz/)
+3. Your domain (optional)
 
 ---
 

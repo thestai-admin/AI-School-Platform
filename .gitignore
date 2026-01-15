@@ -37,6 +37,10 @@ yarn-error.log*
 .env.test.local
 .env.production.local
 
+# infrastructure secrets (never commit)
+infrastructure/.env
+infrastructure/.env.production
+
 # vercel
 .vercel
 

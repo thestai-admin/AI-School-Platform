@@ -8,6 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # Server
 npm run dev          # Start development server (http://localhost:3000)
 npm run build        # Production build
+npm start            # Start production server
 npm run lint         # Run ESLint
 
 # Testing
@@ -22,7 +23,11 @@ docker-compose down      # Stop PostgreSQL
 npx prisma generate      # Regenerate Prisma client after schema changes
 npx prisma migrate dev   # Run database migrations
 npx prisma studio        # Open Prisma database GUI
-npx tsx prisma/seed.ts   # Seed database with default subjects
+npx prisma db seed       # Seed database with default subjects
+
+# School Management
+npx tsx scripts/create-school.ts  # Create a new school with admin user (interactive)
+# Or with env vars: SCHOOL_NAME="My School" SCHOOL_SLUG="myschool" ADMIN_EMAIL="admin@example.com" npx tsx scripts/create-school.ts
 ```
 
 ## Architecture Overview

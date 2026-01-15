@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/db/prisma'
 import { Prisma } from '@prisma/client'
-import { generateWithClaude } from '@/lib/ai/claude'
+import { generateWithClaude } from '@/lib/ai/qwen'
 import {
   getGradingSystemPrompt,
   getGradingUserPrompt,
