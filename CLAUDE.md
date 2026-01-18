@@ -44,20 +44,26 @@ This is a Next.js 16 (App Router) education platform for Indian schools (Class 1
 
 **Authentication Flow**: NextAuth.js with JWT strategy and credentials provider. The middleware (`src/middleware.ts`) enforces role-based access on `/teacher/*`, `/student/*`, `/admin/*`, `/parent/*`, and `/dashboard/*` routes - users can only access routes matching their role (admins can access all routes). Session types are extended in `src/lib/auth.ts` to include `role` and `schoolId`. Password utilities (`hashPassword`, `verifyPassword`) are also exported from `src/lib/auth.ts`.
 
-**AI Integration**: All AI features use Claude via `src/lib/ai/claude.ts` (default model: `claude-sonnet-4-20250514`, configurable via `AI_MODEL` env var). Two main functions:
-- `generateWithClaude()` - Single-turn generation (lessons, worksheets)
-- `chatWithClaude()` - Multi-turn conversations (student chat)
+**AI Integration**: The platform supports multiple AI providers via a unified interface in `src/lib/ai/provider.ts`. Available providers (auto-detected in priority order):
+1. **Vertex AI (Gemma 2)** - Open source, for GCP deployment (`GCP_PROJECT_ID` + `VERTEX_AI_MODEL`)
+2. **Together.ai (Qwen)** - Good quality, affordable (`TOGETHER_API_KEY`)
+3. **Anthropic Claude** - Highest quality (`ANTHROPIC_API_KEY`)
+4. **Ollama** - Local development, no API key needed
 
-Both functions include exponential backoff retry logic (configurable via `AI_MAX_RETRIES`, default 3). For local development without API key, switch imports to `src/lib/ai/ollama.ts`.
+Two main functions available from any provider:
+- `generateWithAI()` - Single-turn generation (lessons, worksheets)
+- `chatWithAI()` - Multi-turn conversations (student chat)
+
+All providers include exponential backoff retry logic (configurable via `AI_MAX_RETRIES`, default 3). Force a specific provider with `AI_PROVIDER` env var.
 
 Prompt templates are in `src/lib/prompts/` and support three languages: English, Hindi (Devanagari), and Mixed (Hinglish). Each prompt file exports:
 - `get[Feature]SystemPrompt()` - Returns the system prompt
 - `get[Feature]UserPrompt()` - Returns the user message with parameters
 - TypeScript interfaces for structured output (e.g., `LessonPlan`)
 
-**Multi-Tenancy**: Schools are isolated by subdomain (e.g., `school1.domain.com`). The slug is extracted in middleware via `src/lib/tenant.ts` and all data is scoped by `schoolId`.
+**Multi-Tenancy**: Schools are isolated by subdomain (e.g., `school1.domain.com`). The slug is extracted in middleware via `src/lib/tenant.ts` and all data is scoped by `schoolId`. Helper functions: `isValidSlug()`, `generateSlugFromName()`, `RESERVED_SLUGS` array for validating school slugs.
 
-**Rate Limiting**: API rate limits are configured in `src/lib/rate-limit.ts`. Key limits: AI endpoints (20 req/min), Auth (10 req/min), Login (5 attempts/15 min).
+**Rate Limiting**: API rate limits are configured in `src/lib/rate-limit.ts`. Key limits: AI endpoints (20 req/min), Auth (10 req/min), Login (5 attempts/15 min), Registration (3/hour).
 
 **Security**: Middleware (`src/middleware.ts`) adds security headers (CSP, HSTS, X-Frame-Options, X-Content-Type-Options).
 
@@ -102,6 +108,30 @@ All client components are marked with `'use client'` directive.
 
 Use `@/*` to import from `src/*` (configured in tsconfig.json).
 
+## Deployment
+
+### GCP (Recommended for Production)
+
+```bash
+# Quick start with deployment script
+chmod +x scripts/deploy-gcp.sh
+./scripts/deploy-gcp.sh setup      # Enable APIs
+./scripts/deploy-gcp.sh create-db  # Create Cloud SQL
+./scripts/deploy-gcp.sh create-secrets  # Store secrets
+./scripts/deploy-gcp.sh deploy     # Deploy to Cloud Run
+./scripts/deploy-gcp.sh domain thestai.com  # Configure domain
+```
+
+See `GCP_DEPLOYMENT.md` for detailed instructions.
+
+### Terraform (Infrastructure as Code)
+
+```bash
+cd infrastructure/terraform/gcp
+cp terraform.tfvars.example terraform.tfvars
+terraform init && terraform apply
+```
+
 ## Environment Variables
 
 Required in `.env`:
@@ -109,11 +139,17 @@ Required in `.env`:
 - `DIRECT_URL` - Direct PostgreSQL connection (same as DATABASE_URL for local dev)
 - `NEXTAUTH_SECRET` - JWT signing secret
 - `NEXTAUTH_URL` - App URL (http://localhost:3000 for dev)
-- `ANTHROPIC_API_KEY` - Claude API key
+
+AI Provider (at least one required):
+- `GCP_PROJECT_ID` + `VERTEX_AI_MODEL` - For Vertex AI/Gemma 2 (GCP)
+- `TOGETHER_API_KEY` - For Together.ai/Qwen
+- `ANTHROPIC_API_KEY` - For Claude
+- None needed for Ollama (local development)
 
 Optional:
-- `AI_MODEL` - Override Claude model (default: `claude-sonnet-4-20250514`)
-- `AI_TIMEOUT` - Request timeout in ms (default: 30000)
+- `AI_PROVIDER` - Force specific provider: `vertex`, `qwen`, `claude`, `ollama`
+- `AI_TIMEOUT` - Request timeout in ms (default: 60000)
 - `AI_MAX_RETRIES` - Max retry attempts (default: 3)
+- `GCP_LOCATION` - GCP region (default: `asia-south1`)
 - `OLLAMA_BASE_URL` - Ollama URL for local AI (default: `http://localhost:11434`)
 - `OLLAMA_MODEL` - Ollama model name (default: `qwen3:8b`)

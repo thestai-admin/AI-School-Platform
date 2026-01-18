@@ -13,15 +13,24 @@ function addSecurityHeaders(response: NextResponse): NextResponse {
   response.headers.set('X-XSS-Protection', '1; mode=block')
   // Referrer policy
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
-  // Permissions policy
+  // Permissions policy - enable microphone for BHASHINI ASR
   response.headers.set(
     'Permissions-Policy',
-    'camera=(), microphone=(), geolocation=(), interest-cohort=()'
+    'camera=(), microphone=(self), geolocation=(), interest-cohort=()'
   )
-  // Content Security Policy (adjust as needed)
+  // Content Security Policy (includes BHASHINI domains)
   response.headers.set(
     'Content-Security-Policy',
-    "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://api.anthropic.com;"
+    [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: https:",
+      "font-src 'self' data:",
+      "connect-src 'self' https://api.anthropic.com https://meity-auth.ulcacontrib.org https://dhruva-api.bhashini.gov.in wss://dhruva-api.bhashini.gov.in",
+      "media-src 'self' blob: data:",
+      "worker-src 'self' blob:",
+    ].join('; ')
   )
   // Strict Transport Security (HTTPS only)
   if (process.env.NODE_ENV === 'production') {

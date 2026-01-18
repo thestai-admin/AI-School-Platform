@@ -33,6 +33,30 @@ enum HomeworkStatus {
   LATE        // Submitted after deadline
 }
 
+// BHASHINI Language codes (ISO-639)
+enum BhashiniLanguage {
+  hi  // Hindi
+  en  // English
+  // Future expansion:
+  // bn  // Bengali
+  // ta  // Tamil
+  // te  // Telugu
+  // mr  // Marathi
+  // gu  // Gujarati
+  // kn  // Kannada
+  // ml  // Malayalam
+  // pa  // Punjabi
+  // or  // Odia
+  // as  // Assamese
+  // ur  // Urdu
+}
+
+enum SessionStatus {
+  ACTIVE
+  PAUSED
+  ENDED
+}
+
 // Models
 model School {
   id        String   @id @default(cuid())
@@ -77,6 +101,9 @@ model User {
   // NextAuth
   accounts Account[]
   sessions Session[]
+
+  // BHASHINI Live Classroom
+  classroomSessions ClassroomSession[]
 
   @@index([schoolId])
   @@index([role])
@@ -129,11 +156,12 @@ model Class {
   schoolId String
   school   School @relation(fields: [schoolId], references: [id])
 
-  students       Student[]
-  teacherClasses TeacherClass[]
-  lessons        Lesson[]
-  worksheets     Worksheet[]
-  homeworks      Homework[]
+  students          Student[]
+  teacherClasses    TeacherClass[]
+  lessons           Lesson[]
+  worksheets        Worksheet[]
+  homeworks         Homework[]
+  classroomSessions ClassroomSession[]
 
   @@index([schoolId])
   @@index([schoolId, grade])
@@ -144,12 +172,13 @@ model Subject {
   name       String
   gradeLevel Int? // Optional: specific grade level for this subject
 
-  teacherClasses TeacherClass[]
-  lessons        Lesson[]
-  worksheets     Worksheet[]
-  chatHistories  ChatHistory[]
-  progress       StudentProgress[]
-  homeworks      Homework[]
+  teacherClasses    TeacherClass[]
+  lessons           Lesson[]
+  worksheets        Worksheet[]
+  chatHistories     ChatHistory[]
+  progress          StudentProgress[]
+  homeworks         Homework[]
+  classroomSessions ClassroomSession[]
 
   @@unique([name, gradeLevel])
 }
@@ -186,6 +215,11 @@ model Student {
   worksheetResponses  WorksheetResponse[]
   progress            StudentProgress[]
   homeworkSubmissions HomeworkSubmission[]
+
+  // BHASHINI Live Classroom & Peer Chat
+  sessionParticipations SessionParticipant[]
+  peerMessages          PeerMessage[]
+  languageProgress      LanguageProgress[]
 }
 
 model Lesson {
@@ -342,4 +376,127 @@ model HomeworkSubmission {
   @@unique([studentId, homeworkId])
   @@index([homeworkId, status])
   @@index([studentId, status])
+}
+
+// ========================
+// BHASHINI Live Classroom
+// ========================
+
+model ClassroomSession {
+  id              String             @id @default(cuid())
+  sourceLanguage  BhashiniLanguage   @default(hi)
+  targetLanguages BhashiniLanguage[]
+  status          SessionStatus      @default(ACTIVE)
+  startedAt       DateTime           @default(now())
+  endedAt         DateTime?
+
+  teacherId String
+  teacher   User   @relation(fields: [teacherId], references: [id])
+
+  classId String
+  class   Class  @relation(fields: [classId], references: [id])
+
+  subjectId String
+  subject   Subject @relation(fields: [subjectId], references: [id])
+
+  transcripts  SessionTranscript[]
+  participants SessionParticipant[]
+
+  @@index([teacherId])
+  @@index([classId])
+  @@index([status])
+  @@index([startedAt])
+}
+
+model SessionTranscript {
+  id           String           @id @default(cuid())
+  sequence     Int
+  originalText String           @db.Text
+  language     BhashiniLanguage
+  timestamp    DateTime         @default(now())
+  confidence   Float?
+
+  sessionId String
+  session   ClassroomSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  translations TranscriptTranslation[]
+
+  @@index([sessionId])
+  @@index([sessionId, sequence])
+}
+
+model TranscriptTranslation {
+  id             String           @id @default(cuid())
+  language       BhashiniLanguage
+  translatedText String           @db.Text
+
+  transcriptId String
+  transcript   SessionTranscript @relation(fields: [transcriptId], references: [id], onDelete: Cascade)
+
+  @@unique([transcriptId, language])
+}
+
+model SessionParticipant {
+  id            String           @id @default(cuid())
+  preferredLang BhashiniLanguage @default(en)
+  joinedAt      DateTime         @default(now())
+
+  sessionId String
+  session   ClassroomSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id])
+
+  @@unique([sessionId, studentId])
+  @@index([sessionId])
+  @@index([studentId])
+}
+
+// ========================
+// BHASHINI Peer Chat
+// ========================
+
+model PeerChat {
+  id        String        @id @default(cuid())
+  isActive  Boolean       @default(true)
+  createdAt DateTime      @default(now())
+  messages  PeerMessage[]
+}
+
+model PeerMessage {
+  id           String           @id @default(cuid())
+  originalText String           @db.Text
+  originalLang BhashiniLanguage
+  translations Json             // Map of language code to translated text
+  audioUrl     String?
+  createdAt    DateTime         @default(now())
+
+  chatId String
+  chat   PeerChat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  senderId String
+  sender   Student @relation(fields: [senderId], references: [id])
+
+  @@index([chatId])
+  @@index([senderId])
+  @@index([chatId, createdAt])
+}
+
+// ========================
+// BHASHINI Language Games
+// ========================
+
+model LanguageProgress {
+  id         String           @id @default(cuid())
+  language   BhashiniLanguage
+  score      Int              @default(0)
+  streakDays Int              @default(0)
+  badges     Json?            // Array of badge objects
+  updatedAt  DateTime         @updatedAt
+
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id])
+
+  @@unique([studentId, language])
+  @@index([studentId])
 }

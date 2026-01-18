@@ -1,0 +1,65 @@
+# GCloud Ignore - Files to exclude from Cloud Build uploads
+
+# Dependencies
+node_modules/
+
+# Build outputs
+.next/
+out/
+dist/
+build/
+
+# Development files
+*.log
+*.local
+.env
+.env.*
+!.env.example
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Git
+.git/
+.gitignore
+
+# Test files
+__tests__/
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+coverage/
+.nyc_output/
+
+# Documentation
+*.md
+!README.md
+
+# Development configs
+docker-compose.yml
+docker-compose.*.yml
+!docker-compose.prod.yml
+vitest.config.ts
+vitest.setup.ts
+eslint.config.mjs
+
+# Terraform state
+*.tfstate
+*.tfstate.*
+.terraform/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Scripts (not needed for build)
+scripts/create-school.ts
+
+# Infrastructure files (not needed in container)
+infrastructure/terraform/

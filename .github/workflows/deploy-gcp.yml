@@ -1,0 +1,247 @@
+# CI/CD Pipeline for AI School Platform - GCP Cloud Run
+# Builds Docker image, pushes to GCR, and deploys to Cloud Run
+
+name: Deploy to GCP
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+
+env:
+  PROJECT_ID: thestai-platform
+  REGION: asia-south1
+  SERVICE_NAME: ai-school-platform
+  REGISTRY: gcr.io
+
+jobs:
+  # Run tests and linting
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: ai_school_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Run database migrations
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/ai_school_test
+          DIRECT_URL: postgresql://test:test@localhost:5432/ai_school_test
+        run: npx prisma migrate deploy
+
+      - name: Run linter
+        run: npm run lint
+
+      - name: Run tests
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/ai_school_test
+          DIRECT_URL: postgresql://test:test@localhost:5432/ai_school_test
+          NEXTAUTH_SECRET: test-secret-for-ci-minimum-32-chars
+          NEXTAUTH_URL: http://localhost:3000
+        run: npm run test:run
+
+  # Build and push to Google Container Registry
+  build:
+    name: Build and Push to GCR
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    permissions:
+      contents: read
+      id-token: write
+
+    outputs:
+      image_url: ${{ steps.build.outputs.image_url }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+
+      - name: Configure Docker for GCR
+        run: gcloud auth configure-docker --quiet
+
+      - name: Build and push Docker image
+        id: build
+        run: |
+          IMAGE_TAG="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ github.sha }}"
+          LATEST_TAG="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:latest"
+
+          docker build -t $IMAGE_TAG -t $LATEST_TAG .
+          docker push $IMAGE_TAG
+          docker push $LATEST_TAG
+
+          echo "image_url=$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+  # Deploy to Cloud Run
+  deploy:
+    name: Deploy to Cloud Run
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    permissions:
+      contents: read
+      id-token: write
+
+    environment:
+      name: production
+      url: https://thestai.com
+
+    steps:
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Deploy to Cloud Run
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ${{ env.SERVICE_NAME }}
+          region: ${{ env.REGION }}
+          image: ${{ needs.build.outputs.image_url }}
+          flags: |
+            --min-instances=1
+            --max-instances=3
+            --memory=512Mi
+            --cpu=1
+            --port=3000
+            --add-cloudsql-instances=${{ env.PROJECT_ID }}:${{ env.REGION }}:ai-school-db
+          env_vars: |
+            NODE_ENV=production
+            GCP_PROJECT_ID=${{ env.PROJECT_ID }}
+            GCP_LOCATION=${{ env.REGION }}
+            VERTEX_AI_MODEL=gemma-2-27b-it
+            NEXTAUTH_URL=https://thestai.com
+            BHASHINI_USE_MOCK=false
+          secrets: |
+            NEXTAUTH_SECRET=NEXTAUTH_SECRET:latest
+            DATABASE_PASSWORD=DATABASE_PASSWORD:latest
+            BHASHINI_API_KEY=BHASHINI_API_KEY:latest
+
+      - name: Verify deployment
+        run: |
+          SERVICE_URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
+            --region ${{ env.REGION }} \
+            --format='value(status.url)')
+
+          echo "Service URL: $SERVICE_URL"
+
+          # Wait for service to be ready
+          sleep 30
+
+          # Health check
+          curl -sf "${SERVICE_URL}/api/health" || exit 1
+
+          echo "Deployment verified successfully!"
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "::error::Deployment to Cloud Run failed!"
+          exit 1
+
+  # Run database migrations
+  migrate:
+    name: Run Migrations
+    runs-on: ubuntu-latest
+    needs: deploy
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Cloud SQL Proxy
+        run: |
+          curl -o cloud-sql-proxy https://storage.googleapis.com/cloud-sql-connectors/cloud-sql-proxy/v2.8.0/cloud-sql-proxy.linux.amd64
+          chmod +x cloud-sql-proxy
+
+      - name: Run migrations
+        env:
+          INSTANCE_CONNECTION_NAME: ${{ env.PROJECT_ID }}:${{ env.REGION }}:ai-school-db
+        run: |
+          # Get database password from Secret Manager
+          DB_PASSWORD=$(gcloud secrets versions access latest --secret=DATABASE_PASSWORD)
+
+          # Start Cloud SQL Proxy in background
+          ./cloud-sql-proxy $INSTANCE_CONNECTION_NAME &
+          sleep 5
+
+          # Run migrations
+          DATABASE_URL="postgresql://ai_school_user:${DB_PASSWORD}@localhost:5432/ai_school" \
+            npx prisma migrate deploy
+
+          echo "Migrations completed successfully!"
