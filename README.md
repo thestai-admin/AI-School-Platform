@@ -1,26 +1,37 @@
-# AI School Platform
+# AI Pathshala (AI पाठशाला)
 
-AI-powered education platform for Indian schools (Class 1-10), designed to work with facilitator teachers while AI handles subject expertise.
+**By THEST AI Private Limited**
+
+AI-powered education platform for Indian schools (Class 1-10), designed to work with facilitator teachers while AI handles subject expertise. Supports Hindi, English, and 22 Indian languages via BHASHINI.
+
+🌐 **Live:** [www.thestai.com](https://www.thestai.com)
+
+---
 
 ## Features
 
 ### For Teachers
-- **AI Lesson Planner**: Generate CBSE-aligned lesson plans with teaching scripts, activities, and board notes
+- **AI Lesson Planner**: Generate CBSE/NCERT-aligned lesson plans with teaching scripts, activities, and board notes
 - **Worksheet Generator**: Create practice worksheets with varying difficulty levels
+- **Live Classroom**: Real-time translation and transcription for multilingual classrooms
 - **Student Progress Tracking**: Monitor student performance across subjects
 
 ### For Students
-- **AI Chatbot**: 24/7 doubt-solving in Hindi and English (Hinglish supported)
+- **AI Chatbot**: 24/7 doubt-solving in Hindi, English, and Hinglish
 - **Practice Worksheets**: Auto-generated practice problems
+- **Live Classroom**: Join sessions with real-time language translation
 - **Progress Dashboard**: Track learning achievements
 
 ### For Parents
 - **Child Progress View**: Monitor child's academic performance
+- **Homework Tracking**: View assignments and submissions
 - **Activity Updates**: Stay informed about learning activities
 
 ### For Admins
 - **School Management**: Manage teachers, students, and classes
 - **Analytics Dashboard**: School-wide performance metrics
+
+---
 
 ## Tech Stack
 
@@ -28,145 +39,103 @@ AI-powered education platform for Indian schools (Class 1-10), designed to work 
 - **Styling**: Tailwind CSS 4
 - **Database**: PostgreSQL with Prisma ORM
 - **Authentication**: NextAuth.js (JWT-based)
-- **AI**: Qwen3 via Together.ai / Claude API / Ollama
+- **AI**: Vertex AI (Gemma 2) / Qwen / Claude / Ollama
+- **Indian Languages**: BHASHINI API (ASR, NMT, TTS)
 - **Testing**: Vitest + React Testing Library
-- **Deployment**: Railway (recommended) / AWS / VPS
+- **Deployment**: Google Cloud Platform (Cloud Run)
 
 ---
 
-## Quick Deploy to Railway
+## Quick Start
 
-[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/new)
+### Local Development
 
-See [RAILWAY_DEPLOYMENT.md](./RAILWAY_DEPLOYMENT.md) for full guide.
-
-**Requirements:**
-1. Railway account (free tier available)
-2. Together.ai API key (free $5 credit): [https://api.together.xyz/](https://api.together.xyz/)
-3. Your domain (optional)
-
----
-
-## Local Development Setup
-
-### Prerequisites
-
-- Node.js 18+
-- Docker Desktop (for PostgreSQL)
-- Git
-
-### Option A: Using Claude API (Recommended for production parity)
-
-1. **Clone the repository**
+1. **Clone and install**
    ```bash
    git clone https://github.com/thestai-admin/AI-School-Platform.git
    cd AI-School-Platform
-   ```
-
-2. **Install dependencies**
-   ```bash
    npm install
    ```
 
-3. **Start PostgreSQL with Docker**
+2. **Start PostgreSQL**
    ```bash
    docker-compose up -d
    ```
 
-4. **Set up environment variables**
+3. **Configure environment**
    ```bash
    cp .env.example .env
+   # Edit .env with your API keys
    ```
 
-   Edit `.env` and add your Anthropic API key:
-   ```env
-   DATABASE_URL="postgresql://postgres:postgres@localhost:5433/ai_school?schema=public"
-   DIRECT_URL="postgresql://postgres:postgres@localhost:5433/ai_school?schema=public"
-   NEXTAUTH_SECRET="your-secret-key-min-32-chars"
-   NEXTAUTH_URL="http://localhost:3000"
-   ANTHROPIC_API_KEY="sk-ant-your-key-here"
-   ```
-
-5. **Run database migrations**
+4. **Setup database**
    ```bash
    npx prisma migrate dev
+   npx prisma db seed
    ```
 
-6. **Seed the database**
+5. **Create a school**
    ```bash
-   DATABASE_URL="postgresql://postgres:postgres@localhost:5433/ai_school?schema=public" npx tsx prisma/seed.ts
+   npx tsx scripts/create-school.ts
    ```
 
-7. **Start the development server**
+6. **Start development server**
    ```bash
    npm run dev
    ```
 
-8. **Open the app**
-
-   Navigate to [http://localhost:3000](http://localhost:3000)
-
-### Option B: Using Ollama (Free, Local AI)
-
-If you don't have an Anthropic API key, you can use Ollama for local AI:
-
-1. **Install Ollama**
-   - Download from [https://ollama.com/download](https://ollama.com/download)
-   - Install and start Ollama
-
-2. **Pull a model**
-   ```bash
-   ollama pull qwen3:8b
-   ```
-
-3. **Update the AI import in API routes**
-
-   Change imports in these files from `@/lib/ai/claude` to `@/lib/ai/ollama`:
-   - `src/app/api/ai/chat/route.ts`
-   - `src/app/api/ai/lesson/route.ts`
-   - `src/app/api/ai/worksheet/route.ts`
-
-4. **Update `.env`**
-   ```env
-   OLLAMA_BASE_URL="http://localhost:11434"
-   OLLAMA_MODEL="qwen3:8b"
-   ```
-
-5. **Follow steps 1-7 from Option A** (skip the ANTHROPIC_API_KEY)
+7. Open [http://localhost:3000](http://localhost:3000)
 
 ---
 
-## Development Commands
+## AI Provider Options
 
-```bash
-# Start development server
-npm run dev
+The platform supports multiple AI providers (auto-detected):
 
-# Run tests
-npm test
+| Provider | Setup | Best For |
+|----------|-------|----------|
+| **Vertex AI (Gemma 2)** | Set `GCP_PROJECT_ID` | Production on GCP |
+| **Together.ai (Qwen)** | Set `TOGETHER_API_KEY` | Affordable cloud AI |
+| **Anthropic Claude** | Set `ANTHROPIC_API_KEY` | Highest quality |
+| **Ollama** | Install locally | Free local development |
 
-# Run tests once (CI mode)
-npm run test:run
+```env
+# Example: Use Vertex AI
+GCP_PROJECT_ID=your-project
+GCP_LOCATION=asia-south1
+VERTEX_AI_MODEL=gemma-2-27b-it
 
-# Run tests with coverage
-npm run test:coverage
-
-# Lint code
-npm run lint
-
-# Build for production
-npm run build
-
-# Start production server
-npm start
-
-# Database commands
-npx prisma studio          # Open database GUI
-npx prisma migrate dev     # Create and run migrations
-npx prisma migrate deploy  # Deploy migrations (production)
-npx prisma generate        # Regenerate Prisma client
-npx prisma db push         # Push schema changes (dev only)
+# Or force a specific provider
+AI_PROVIDER=vertex
 ```
+
+---
+
+## Deployment
+
+### Deploy to Google Cloud Platform
+
+See [**LIVE_DEPLOYMENT_GUIDE.md**](./LIVE_DEPLOYMENT_GUIDE.md) for complete step-by-step instructions.
+
+**Quick deploy:**
+```bash
+# 1. Setup GCP
+./scripts/deploy-gcp.sh setup
+
+# 2. Create database
+./scripts/deploy-gcp.sh create-db
+
+# 3. Create secrets
+./scripts/deploy-gcp.sh create-secrets
+
+# 4. Deploy
+./scripts/deploy-gcp.sh deploy
+
+# 5. Configure domain
+./scripts/deploy-gcp.sh domain www.thestai.com
+```
+
+**Estimated Cost:** ~$40/month (free with GCP credits for 57+ months)
 
 ---
 
@@ -177,48 +146,50 @@ ai-school-platform/
 ├── src/
 │   ├── app/                    # Next.js App Router
 │   │   ├── (auth)/            # Login, Register pages
-│   │   ├── admin/             # Admin portal
-│   │   ├── api/               # API routes
-│   │   │   ├── ai/            # AI endpoints (lesson, chat, worksheet)
-│   │   │   ├── auth/          # Authentication endpoints
-│   │   │   └── health/        # Health check for load balancer
-│   │   ├── parent/            # Parent portal
+│   │   ├── admin/             # Admin dashboard
+│   │   ├── teacher/           # Teacher portal
 │   │   ├── student/           # Student portal
-│   │   └── teacher/           # Teacher portal
-│   ├── components/            # React components
-│   │   ├── layout/            # Layout components
-│   │   ├── providers/         # Context providers
-│   │   └── ui/                # Base UI components
-│   ├── lib/                   # Utilities
-│   │   ├── ai/                # AI integrations (Claude, Ollama)
+│   │   ├── parent/            # Parent portal
+│   │   └── api/               # API routes
+│   │       ├── ai/            # AI endpoints
+│   │       ├── bhashini/      # Indian language APIs
+│   │       └── classroom/     # Live classroom
+│   ├── components/
+│   │   ├── ui/                # Base UI components
+│   │   ├── bhashini/          # Language components
+│   │   └── layout/            # Layout components
+│   ├── lib/
+│   │   ├── ai/                # AI providers (vertex, claude, qwen, ollama)
+│   │   ├── bhashini/          # BHASHINI integration
 │   │   ├── db/                # Prisma client
 │   │   └── prompts/           # AI prompt templates
-│   └── types/                 # TypeScript types
+│   └── hooks/                 # React hooks
 ├── prisma/
 │   ├── schema.prisma          # Database schema
-│   ├── migrations/            # Database migrations
 │   └── seed.ts                # Seed data
+├── scripts/
+│   ├── create-school.ts       # School setup script
+│   └── deploy-gcp.sh          # GCP deployment script
 ├── infrastructure/
-│   └── terraform/             # AWS infrastructure as code
-├── public/                    # Static assets
-├── Dockerfile                 # Production container
-├── docker-compose.yml         # Local PostgreSQL
-└── buildspec.yml              # AWS CodeBuild config
+│   └── terraform/gcp/         # GCP infrastructure as code
+└── docker-compose.yml         # Local PostgreSQL
 ```
 
 ---
 
-## Multi-Tenancy (Schools)
+## Language Support
 
-The platform supports multiple schools with subdomain isolation:
+### Interface Languages
+- **English** - Full support
+- **Hindi** - Devanagari script (हिंदी)
+- **Hinglish** - Mixed Hindi-English
 
-- `school1.yourdomain.com` → School 1
-- `school2.yourdomain.com` → School 2
+### BHASHINI Integration (22 Indian Languages)
+- Automatic Speech Recognition (ASR)
+- Neural Machine Translation (NMT)
+- Text-to-Speech (TTS)
 
-Each school has:
-- Unique `slug` for subdomain identification
-- Isolated data (users, classes, lessons, etc.)
-- Role-based access (Admin, Teacher, Student, Parent)
+Supported: Hindi, Bengali, Tamil, Telugu, Marathi, Gujarati, Kannada, Malayalam, Odia, Punjabi, Assamese, and more.
 
 ---
 
@@ -226,91 +197,84 @@ Each school has:
 
 | Role | Access |
 |------|--------|
-| **Admin** | Full access to all features and school management |
-| **Teacher** | Create lessons, worksheets, view student progress |
-| **Student** | AI chat, practice worksheets, view own progress |
-| **Parent** | View child's progress and activities |
+| **Admin** | Full school management, analytics |
+| **Teacher** | Lessons, worksheets, classroom, student progress |
+| **Student** | AI chat, worksheets, live classroom |
+| **Parent** | Child's progress and homework |
 
 ---
 
-## Language Support
-
-- **English** - Full support
-- **Hindi** - Devanagari script
-- **Hinglish** - Mixed Hindi-English (common in Indian classrooms)
-
----
-
-## Testing
+## Development Commands
 
 ```bash
-# Run all tests in watch mode
-npm test
+# Development
+npm run dev              # Start dev server
+npm run build            # Production build
+npm start                # Start production server
+npm run lint             # Run linter
 
-# Run tests once
-npm run test:run
+# Testing
+npm test                 # Watch mode
+npm run test:run         # Single run
+npm run test:coverage    # With coverage
 
-# Run with coverage report
-npm run test:coverage
-```
+# Database
+docker-compose up -d     # Start PostgreSQL
+npx prisma studio        # Database GUI
+npx prisma migrate dev   # Run migrations
+npx prisma db seed       # Seed data
 
-Test files are located in `__tests__` directories:
-- `src/components/ui/__tests__/` - UI component tests
-- `src/lib/ai/__tests__/` - AI integration tests
-
----
-
-## Troubleshooting
-
-### Database connection issues
-```bash
-# Check if PostgreSQL is running
-docker ps
-
-# Restart PostgreSQL
-docker-compose down && docker-compose up -d
-
-# Check logs
-docker logs ai_school_db
-```
-
-### Prisma issues
-```bash
-# Regenerate Prisma client
-npx prisma generate
-
-# Reset database (WARNING: deletes all data)
-npx prisma migrate reset
-```
-
-### Port already in use
-```bash
-# Find process using port 3000
-lsof -i :3000
-
-# Kill the process
-kill -9 <PID>
+# Deployment
+./scripts/deploy-gcp.sh deploy   # Deploy to GCP
+./scripts/deploy-gcp.sh logs     # View logs
 ```
 
 ---
 
-## AWS Deployment
+## Environment Variables
 
-For production deployment to AWS, see [DEPLOYMENT.md](./DEPLOYMENT.md).
+Required:
+- `DATABASE_URL` - PostgreSQL connection
+- `NEXTAUTH_SECRET` - Auth secret (32+ chars)
+- `NEXTAUTH_URL` - App URL
+
+AI (at least one):
+- `GCP_PROJECT_ID` + `VERTEX_AI_MODEL` - For Vertex AI
+- `TOGETHER_API_KEY` - For Together.ai
+- `ANTHROPIC_API_KEY` - For Claude
+- (none) - For Ollama
+
+BHASHINI (optional):
+- `BHASHINI_USER_ID` - ULCA user ID
+- `BHASHINI_API_KEY` - ULCA API key
+
+See [.env.example](./.env.example) for full list.
 
 ---
 
 ## Contributing
 
-1. Create a feature branch: `git checkout -b feature/my-feature`
-2. Make your changes
-3. Run tests: `npm test`
+1. Fork the repository
+2. Create feature branch: `git checkout -b feature/my-feature`
+3. Make changes and test: `npm test`
 4. Commit: `git commit -m "feat: add my feature"`
 5. Push: `git push origin feature/my-feature`
-6. Create a Pull Request
+6. Create Pull Request
+
+---
+
+## Support
+
+- **Documentation**: [LIVE_DEPLOYMENT_GUIDE.md](./LIVE_DEPLOYMENT_GUIDE.md)
+- **Issues**: [GitHub Issues](https://github.com/thestai-admin/AI-School-Platform/issues)
+- **Email**: support@thestai.com
 
 ---
 
 ## License
 
-Private - All rights reserved
+Copyright © 2024 THEST AI Private Limited. All rights reserved.
+
+---
+
+**Made with ❤️ in India for Indian Schools**
