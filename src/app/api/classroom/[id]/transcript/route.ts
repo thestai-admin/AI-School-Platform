@@ -2,11 +2,30 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/db/prisma'
-import { UserRole, SessionStatus } from '@prisma/client'
+import { UserRole, SessionStatus, BhashiniLanguage } from '@prisma/client'
 import { rateLimiters, getClientIp, rateLimitResponse } from '@/lib/rate-limit'
 import { translate } from '@/lib/bhashini/nmt'
 import { sendTranscriptToSession, sendTranslationUpdate } from '@/app/api/realtime/classroom/route'
 import type { BhashiniLanguageCode } from '@/lib/bhashini/types'
+
+// Helper to convert string to BhashiniLanguage enum
+function toBhashiniLanguage(code: string): BhashiniLanguage {
+  const langMap: Record<string, BhashiniLanguage> = {
+    'hi': BhashiniLanguage.hi,
+    'en': BhashiniLanguage.en,
+    'bn': BhashiniLanguage.bn,
+    'ta': BhashiniLanguage.ta,
+    'te': BhashiniLanguage.te,
+    'mr': BhashiniLanguage.mr,
+    'gu': BhashiniLanguage.gu,
+    'kn': BhashiniLanguage.kn,
+    'ml': BhashiniLanguage.ml,
+    'pa': BhashiniLanguage.pa,
+    'or': BhashiniLanguage.or,
+    'as': BhashiniLanguage.as,
+  }
+  return langMap[code] || BhashiniLanguage.en
+}
 
 interface RouteParams {
   params: Promise<{ id: string }>
@@ -130,7 +149,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         sessionId,
         sequence,
         originalText: text,
-        language: language as BhashiniLanguageCode,
+        language: toBhashiniLanguage(language),
         confidence,
       },
     })
