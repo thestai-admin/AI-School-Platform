@@ -11,7 +11,7 @@ export interface TranscriptEntry {
   sequence: number
   originalText: string
   language: BhashiniLanguageCode
-  translations: Record<BhashiniLanguageCode, string>
+  translations: Partial<Record<BhashiniLanguageCode, string>>
   timestamp: Date
   confidence?: number
 }
