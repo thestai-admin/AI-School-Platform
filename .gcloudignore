@@ -2,6 +2,11 @@
 
 # Dependencies
 node_modules/
+**/node_modules/
+
+# Google Cloud SDK (downloaded locally)
+google-cloud-sdk/
+google-cloud-cli-*.tar.gz
 
 # Build outputs
 .next/
