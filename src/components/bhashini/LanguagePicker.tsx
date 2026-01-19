@@ -4,7 +4,7 @@ import { forwardRef, SelectHTMLAttributes } from 'react'
 import { SUPPORTED_LANGUAGES, type LanguageInfo } from '@/lib/bhashini/languages'
 import type { BhashiniLanguageCode } from '@/lib/bhashini/types'
 
-interface LanguagePickerProps extends Omit<SelectHTMLAttributes<HTMLSelectElement>, 'onChange'> {
+interface LanguagePickerProps extends Omit<SelectHTMLAttributes<HTMLSelectElement>, 'onChange' | 'size'> {
   value: BhashiniLanguageCode
   onChange: (language: BhashiniLanguageCode) => void
   languages?: LanguageInfo[]
