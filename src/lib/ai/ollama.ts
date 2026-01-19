@@ -11,7 +11,7 @@ export interface ChatMessage {
   content: string
 }
 
-export async function generateWithClaude(
+export async function generateWithOllama(
   systemPrompt: string,
   userMessage: string,
   options?: {
@@ -33,7 +33,7 @@ export async function generateWithClaude(
   return response.message.content
 }
 
-export async function chatWithClaude(
+export async function chatWithOllama(
   systemPrompt: string,
   messages: ChatMessage[],
   options?: {
