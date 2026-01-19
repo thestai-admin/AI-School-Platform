@@ -4,7 +4,8 @@
  */
 
 // Supported BHASHINI language codes (ISO-639)
-export type BhashiniLanguageCode = 'hi' | 'en' | 'bn' | 'ta' | 'te' | 'mr' | 'gu' | 'kn' | 'ml' | 'pa' | 'or' | 'as' | 'ur'
+// Must match BhashiniLanguage enum in prisma/schema.prisma
+export type BhashiniLanguageCode = 'hi' | 'en' | 'bn' | 'ta' | 'te' | 'mr' | 'gu' | 'kn' | 'ml' | 'pa' | 'or' | 'as'
 
 // Pipeline task types
 export type TaskType = 'asr' | 'translation' | 'tts'
