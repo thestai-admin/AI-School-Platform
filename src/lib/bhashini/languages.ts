@@ -104,13 +104,6 @@ export const ALL_INDIAN_LANGUAGES: LanguageInfo[] = [
     script: 'Bengali',
     region: ['Assam'],
   },
-  {
-    code: 'ur',
-    name: 'Urdu',
-    nativeName: 'اردو',
-    script: 'Perso-Arabic',
-    region: ['Jammu & Kashmir', 'Uttar Pradesh'],
-  },
 ]
 
 // Helper functions
