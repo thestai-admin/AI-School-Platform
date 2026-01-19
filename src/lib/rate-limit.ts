@@ -84,22 +84,6 @@ export const rateLimiters = {
   // Registration: 3 per hour
   register: (identifier: string) =>
     checkRateLimit(`register:${identifier}`, { windowMs: 3600000, maxRequests: 3 }),
-
-  // BHASHINI ASR: 30 requests per minute (audio transcription)
-  bhashiniAsr: (identifier: string) =>
-    checkRateLimit(`bhashini-asr:${identifier}`, { windowMs: 60000, maxRequests: 30 }),
-
-  // BHASHINI NMT: 60 requests per minute (text translation - lighter)
-  bhashiniNmt: (identifier: string) =>
-    checkRateLimit(`bhashini-nmt:${identifier}`, { windowMs: 60000, maxRequests: 60 }),
-
-  // BHASHINI TTS: 20 requests per minute (audio generation)
-  bhashiniTts: (identifier: string) =>
-    checkRateLimit(`bhashini-tts:${identifier}`, { windowMs: 60000, maxRequests: 20 }),
-
-  // BHASHINI Realtime: 10 sessions per minute (WebSocket/SSE connections)
-  bhashiniRealtime: (identifier: string) =>
-    checkRateLimit(`bhashini-realtime:${identifier}`, { windowMs: 60000, maxRequests: 10 }),
 }
 
 // Helper to get client IP from request

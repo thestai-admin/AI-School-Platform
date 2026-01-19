@@ -45,10 +45,11 @@ This is a Next.js 16 (App Router) education platform for Indian schools (Class 1
 **Authentication Flow**: NextAuth.js with JWT strategy and credentials provider. The middleware (`src/middleware.ts`) enforces role-based access on `/teacher/*`, `/student/*`, `/admin/*`, `/parent/*`, and `/dashboard/*` routes - users can only access routes matching their role (admins can access all routes). Session types are extended in `src/lib/auth.ts` to include `role` and `schoolId`. Password utilities (`hashPassword`, `verifyPassword`) are also exported from `src/lib/auth.ts`.
 
 **AI Integration**: The platform supports multiple AI providers via a unified interface in `src/lib/ai/provider.ts`. Available providers (auto-detected in priority order):
-1. **Vertex AI (Gemma 2)** - Open source, for GCP deployment (`GCP_PROJECT_ID` + `VERTEX_AI_MODEL`)
-2. **Together.ai (Qwen)** - Good quality, affordable (`TOGETHER_API_KEY`)
-3. **Anthropic Claude** - Highest quality (`ANTHROPIC_API_KEY`)
-4. **Ollama** - Local development, no API key needed
+1. **Google AI (Gemini)** - Recommended for production (`GOOGLE_AI_API_KEY`) - uses gemini-2.0-flash
+2. **Vertex AI (Gemma 2)** - Open source, for GCP deployment (`GCP_PROJECT_ID` + `VERTEX_AI_MODEL`)
+3. **Together.ai (Qwen)** - Good quality, affordable (`TOGETHER_API_KEY`)
+4. **Anthropic Claude** - Highest quality (`ANTHROPIC_API_KEY`)
+5. **Ollama** - Local development, no API key needed
 
 Two main functions available from any provider:
 - `generateWithAI()` - Single-turn generation (lessons, worksheets)
@@ -141,13 +142,15 @@ Required in `.env`:
 - `NEXTAUTH_URL` - App URL (http://localhost:3000 for dev)
 
 AI Provider (at least one required):
+- `GOOGLE_AI_API_KEY` - For Google AI/Gemini (recommended, get key from https://aistudio.google.com/apikey)
 - `GCP_PROJECT_ID` + `VERTEX_AI_MODEL` - For Vertex AI/Gemma 2 (GCP)
 - `TOGETHER_API_KEY` - For Together.ai/Qwen
 - `ANTHROPIC_API_KEY` - For Claude
 - None needed for Ollama (local development)
 
 Optional:
-- `AI_PROVIDER` - Force specific provider: `vertex`, `qwen`, `claude`, `ollama`
+- `AI_PROVIDER` - Force specific provider: `google-ai`, `vertex`, `qwen`, `claude`, `ollama`
+- `GOOGLE_AI_MODEL` - Google AI model (default: `gemini-2.0-flash`)
 - `AI_TIMEOUT` - Request timeout in ms (default: 60000)
 - `AI_MAX_RETRIES` - Max retry attempts (default: 3)
 - `GCP_LOCATION` - GCP region (default: `asia-south1`)

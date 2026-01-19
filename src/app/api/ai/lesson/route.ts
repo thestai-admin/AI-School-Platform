@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { generateWithClaude } from '@/lib/ai/qwen'
+import { generateWithAI } from '@/lib/ai/provider'
 import { getLessonSystemPrompt, getLessonUserPrompt } from '@/lib/prompts/lesson'
 import { Language } from '@prisma/client'
 import { prisma } from '@/lib/db/prisma'
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
       duration: duration || 45,
     })
 
-    const lessonPlan = await generateWithClaude(systemPrompt, userPrompt, {
+    const lessonPlan = await generateWithAI(systemPrompt, userPrompt, {
       maxTokens: 4096,
     })
 

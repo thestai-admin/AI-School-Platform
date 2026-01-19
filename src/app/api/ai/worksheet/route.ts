@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { generateWithClaude } from '@/lib/ai/qwen'
+import { generateWithAI } from '@/lib/ai/provider'
 import { getWorksheetSystemPrompt, getWorksheetUserPrompt, WorksheetQuestion } from '@/lib/prompts/worksheet'
 import { Language, Difficulty } from '@prisma/client'
 import { prisma } from '@/lib/db/prisma'
@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
       questionTypes,
     })
 
-    const response = await generateWithClaude(systemPrompt, userPrompt, {
+    const response = await generateWithAI(systemPrompt, userPrompt, {
       maxTokens: 4096,
     })
 

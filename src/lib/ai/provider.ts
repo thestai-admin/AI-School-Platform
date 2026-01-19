@@ -3,10 +3,11 @@
  *
  * Automatically selects the appropriate AI provider based on environment configuration.
  * Priority order:
- * 1. Vertex AI (GCP) - if GCP_PROJECT_ID is set
- * 2. Together.ai (Qwen) - if TOGETHER_API_KEY is set
- * 3. Anthropic Claude - if ANTHROPIC_API_KEY is set
- * 4. Ollama - fallback for local development
+ * 1. Google AI (API Key) - if GOOGLE_AI_API_KEY is set (simplest)
+ * 2. Vertex AI (GCP) - if GCP_PROJECT_ID and VERTEX_AI_MODEL are set
+ * 3. Together.ai (Qwen) - if TOGETHER_API_KEY is set
+ * 4. Anthropic Claude - if ANTHROPIC_API_KEY is set
+ * 5. Ollama - fallback for local development
  */
 
 export type MessageRole = 'user' | 'assistant'
@@ -23,17 +24,20 @@ export interface GenerateOptions {
 }
 
 // Determine which provider to use
-function getProvider(): 'vertex' | 'qwen' | 'claude' | 'ollama' {
+function getProvider(): 'google-ai' | 'vertex' | 'qwen' | 'claude' | 'ollama' {
   // Force a specific provider via environment variable
   const forcedProvider = process.env.AI_PROVIDER
   if (forcedProvider) {
-    if (['vertex', 'qwen', 'claude', 'ollama'].includes(forcedProvider)) {
-      return forcedProvider as 'vertex' | 'qwen' | 'claude' | 'ollama'
+    if (['google-ai', 'vertex', 'qwen', 'claude', 'ollama'].includes(forcedProvider)) {
+      return forcedProvider as 'google-ai' | 'vertex' | 'qwen' | 'claude' | 'ollama'
     }
     console.warn(`Unknown AI_PROVIDER "${forcedProvider}", falling back to auto-detection`)
   }
 
   // Auto-detect based on available credentials
+  if (process.env.GOOGLE_AI_API_KEY) {
+    return 'google-ai'
+  }
   if (process.env.GCP_PROJECT_ID && process.env.VERTEX_AI_MODEL) {
     return 'vertex'
   }
@@ -47,6 +51,11 @@ function getProvider(): 'vertex' | 'qwen' | 'claude' | 'ollama' {
 }
 
 // Lazy-load providers to avoid importing unused dependencies
+async function getGoogleAIFunctions() {
+  const { generateWithGoogleAI, chatWithGoogleAI } = await import('./google-ai')
+  return { generate: generateWithGoogleAI, chat: chatWithGoogleAI }
+}
+
 async function getVertexFunctions() {
   const { generateWithVertex, chatWithVertex } = await import('./vertex')
   return { generate: generateWithVertex, chat: chatWithVertex }
@@ -71,6 +80,9 @@ async function getProviderFunctions() {
   const provider = getProvider()
 
   switch (provider) {
+    case 'google-ai':
+      console.log('[AI] Using Google AI (Gemini)')
+      return getGoogleAIFunctions()
     case 'vertex':
       console.log('[AI] Using Vertex AI (Gemma 2)')
       return getVertexFunctions()
@@ -135,6 +147,8 @@ export function getProviderInfo() {
 
 function getModelForProvider(provider: string): string {
   switch (provider) {
+    case 'google-ai':
+      return process.env.GOOGLE_AI_MODEL || 'gemini-1.5-flash'
     case 'vertex':
       return process.env.VERTEX_AI_MODEL || 'gemma-2-27b-it'
     case 'qwen':
@@ -150,6 +164,8 @@ function getModelForProvider(provider: string): string {
 
 function isProviderConfigured(provider: string): boolean {
   switch (provider) {
+    case 'google-ai':
+      return !!process.env.GOOGLE_AI_API_KEY
     case 'vertex':
       return !!process.env.GCP_PROJECT_ID
     case 'qwen':

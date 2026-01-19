@@ -13,12 +13,12 @@ function addSecurityHeaders(response: NextResponse): NextResponse {
   response.headers.set('X-XSS-Protection', '1; mode=block')
   // Referrer policy
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
-  // Permissions policy - enable microphone for BHASHINI ASR
+  // Permissions policy
   response.headers.set(
     'Permissions-Policy',
-    'camera=(), microphone=(self), geolocation=(), interest-cohort=()'
+    'camera=(), microphone=(), geolocation=(), interest-cohort=()'
   )
-  // Content Security Policy (includes BHASHINI domains)
+  // Content Security Policy
   response.headers.set(
     'Content-Security-Policy',
     [
@@ -27,7 +27,7 @@ function addSecurityHeaders(response: NextResponse): NextResponse {
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: https:",
       "font-src 'self' data:",
-      "connect-src 'self' https://api.anthropic.com https://meity-auth.ulcacontrib.org https://dhruva-api.bhashini.gov.in wss://dhruva-api.bhashini.gov.in",
+      "connect-src 'self' https://generativelanguage.googleapis.com",
       "media-src 'self' blob: data:",
       "worker-src 'self' blob:",
     ].join('; ')

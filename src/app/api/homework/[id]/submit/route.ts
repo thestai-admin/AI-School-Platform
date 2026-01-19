@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/db/prisma'
 import { Prisma } from '@prisma/client'
-import { generateWithClaude } from '@/lib/ai/qwen'
+import { generateWithAI } from '@/lib/ai/provider'
 import {
   getGradingSystemPrompt,
   getGradingUserPrompt,
@@ -108,7 +108,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
           studentAnswers: formattedAnswers,
         })
 
-        const response = await generateWithClaude(systemPrompt, userPrompt, {
+        const response = await generateWithAI(systemPrompt, userPrompt, {
           maxTokens: 4096,
         })
 

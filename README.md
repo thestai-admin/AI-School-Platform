@@ -1,10 +1,10 @@
-# AI Pathshala (AI पाठशाला)
+# AI Pathshala (AI School Platform)
 
 **By THEST AI Private Limited**
 
-AI-powered education platform for Indian schools (Class 1-10), designed to work with facilitator teachers while AI handles subject expertise. Supports Hindi, English, and 22 Indian languages via BHASHINI.
+AI-powered education platform for Indian schools (Class 1-10), designed to work with facilitator teachers while AI handles subject expertise.
 
-🌐 **Live:** [www.thestai.com](https://www.thestai.com)
+**Live:** [thestai.com](https://thestai.com)
 
 ---
 
@@ -13,13 +13,13 @@ AI-powered education platform for Indian schools (Class 1-10), designed to work 
 ### For Teachers
 - **AI Lesson Planner**: Generate CBSE/NCERT-aligned lesson plans with teaching scripts, activities, and board notes
 - **Worksheet Generator**: Create practice worksheets with varying difficulty levels
-- **Live Classroom**: Real-time translation and transcription for multilingual classrooms
+- **Homework Management**: Assign homework with AI-powered auto-grading
 - **Student Progress Tracking**: Monitor student performance across subjects
 
 ### For Students
-- **AI Chatbot**: 24/7 doubt-solving in Hindi, English, and Hinglish
+- **AI Chatbot**: 24/7 doubt-solving assistant
 - **Practice Worksheets**: Auto-generated practice problems
-- **Live Classroom**: Join sessions with real-time language translation
+- **Homework Submission**: Submit and receive instant AI feedback
 - **Progress Dashboard**: Track learning achievements
 
 ### For Parents
@@ -39,9 +39,7 @@ AI-powered education platform for Indian schools (Class 1-10), designed to work 
 - **Styling**: Tailwind CSS 4
 - **Database**: PostgreSQL with Prisma ORM
 - **Authentication**: NextAuth.js (JWT-based)
-- **AI**: Vertex AI (Gemma 2) / Qwen / Claude / Ollama
-- **Indian Languages**: BHASHINI API (ASR, NMT, TTS)
-- **Testing**: Vitest + React Testing Library
+- **AI**: Google AI (Gemini) - primary provider
 - **Deployment**: Google Cloud Platform (Cloud Run)
 
 ---
@@ -90,23 +88,22 @@ AI-powered education platform for Indian schools (Class 1-10), designed to work 
 
 ## AI Provider Options
 
-The platform supports multiple AI providers (auto-detected):
+The platform supports multiple AI providers (auto-detected in priority order):
 
 | Provider | Setup | Best For |
 |----------|-------|----------|
-| **Vertex AI (Gemma 2)** | Set `GCP_PROJECT_ID` | Production on GCP |
+| **Google AI (Gemini)** | Set `GOOGLE_AI_API_KEY` | Production (recommended) |
+| **Vertex AI (Gemma 2)** | Set `GCP_PROJECT_ID` | GCP-native deployment |
 | **Together.ai (Qwen)** | Set `TOGETHER_API_KEY` | Affordable cloud AI |
 | **Anthropic Claude** | Set `ANTHROPIC_API_KEY` | Highest quality |
 | **Ollama** | Install locally | Free local development |
 
 ```env
-# Example: Use Vertex AI
-GCP_PROJECT_ID=your-project
-GCP_LOCATION=asia-south1
-VERTEX_AI_MODEL=gemma-2-27b-it
+# Recommended: Google AI (get key from https://aistudio.google.com/apikey)
+GOOGLE_AI_API_KEY=your-api-key
 
 # Or force a specific provider
-AI_PROVIDER=vertex
+AI_PROVIDER=google-ai
 ```
 
 ---
@@ -115,7 +112,7 @@ AI_PROVIDER=vertex
 
 ### Deploy to Google Cloud Platform
 
-See [**LIVE_DEPLOYMENT_GUIDE.md**](./LIVE_DEPLOYMENT_GUIDE.md) for complete step-by-step instructions.
+See [**LIVE_DEPLOYMENT_GUIDE.md**](./LIVE_DEPLOYMENT_GUIDE.md) for complete instructions.
 
 **Quick deploy:**
 ```bash
@@ -132,10 +129,10 @@ See [**LIVE_DEPLOYMENT_GUIDE.md**](./LIVE_DEPLOYMENT_GUIDE.md) for complete step
 ./scripts/deploy-gcp.sh deploy
 
 # 5. Configure domain
-./scripts/deploy-gcp.sh domain www.thestai.com
+./scripts/deploy-gcp.sh domain thestai.com
 ```
 
-**Estimated Cost:** ~$40/month (free with GCP credits for 57+ months)
+**Estimated Cost:** ~$30/month (free with GCP credits)
 
 ---
 
@@ -151,16 +148,14 @@ ai-school-platform/
 │   │   ├── student/           # Student portal
 │   │   ├── parent/            # Parent portal
 │   │   └── api/               # API routes
-│   │       ├── ai/            # AI endpoints
-│   │       ├── bhashini/      # Indian language APIs
-│   │       └── classroom/     # Live classroom
+│   │       ├── ai/            # AI endpoints (chat, lesson, worksheet)
+│   │       ├── homework/      # Homework management
+│   │       └── auth/          # Authentication
 │   ├── components/
 │   │   ├── ui/                # Base UI components
-│   │   ├── bhashini/          # Language components
 │   │   └── layout/            # Layout components
 │   ├── lib/
-│   │   ├── ai/                # AI providers (vertex, claude, qwen, ollama)
-│   │   ├── bhashini/          # BHASHINI integration
+│   │   ├── ai/                # AI providers (google-ai, vertex, claude, qwen, ollama)
 │   │   ├── db/                # Prisma client
 │   │   └── prompts/           # AI prompt templates
 │   └── hooks/                 # React hooks
@@ -170,26 +165,8 @@ ai-school-platform/
 ├── scripts/
 │   ├── create-school.ts       # School setup script
 │   └── deploy-gcp.sh          # GCP deployment script
-├── infrastructure/
-│   └── terraform/gcp/         # GCP infrastructure as code
 └── docker-compose.yml         # Local PostgreSQL
 ```
-
----
-
-## Language Support
-
-### Interface Languages
-- **English** - Full support
-- **Hindi** - Devanagari script (हिंदी)
-- **Hinglish** - Mixed Hindi-English
-
-### BHASHINI Integration (22 Indian Languages)
-- Automatic Speech Recognition (ASR)
-- Neural Machine Translation (NMT)
-- Text-to-Speech (TTS)
-
-Supported: Hindi, Bengali, Tamil, Telugu, Marathi, Gujarati, Kannada, Malayalam, Odia, Punjabi, Assamese, and more.
 
 ---
 
@@ -198,8 +175,8 @@ Supported: Hindi, Bengali, Tamil, Telugu, Marathi, Gujarati, Kannada, Malayalam,
 | Role | Access |
 |------|--------|
 | **Admin** | Full school management, analytics |
-| **Teacher** | Lessons, worksheets, classroom, student progress |
-| **Student** | AI chat, worksheets, live classroom |
+| **Teacher** | Lessons, worksheets, homework, student progress |
+| **Student** | AI chat, worksheets, homework submission |
 | **Parent** | Child's progress and homework |
 
 ---
@@ -213,11 +190,6 @@ npm run build            # Production build
 npm start                # Start production server
 npm run lint             # Run linter
 
-# Testing
-npm test                 # Watch mode
-npm run test:run         # Single run
-npm run test:coverage    # With coverage
-
 # Database
 docker-compose up -d     # Start PostgreSQL
 npx prisma studio        # Database GUI
@@ -226,40 +198,35 @@ npx prisma db seed       # Seed data
 
 # Deployment
 ./scripts/deploy-gcp.sh deploy   # Deploy to GCP
-./scripts/deploy-gcp.sh logs     # View logs
 ```
 
 ---
 
 ## Environment Variables
 
-Required:
+**Required:**
 - `DATABASE_URL` - PostgreSQL connection
 - `NEXTAUTH_SECRET` - Auth secret (32+ chars)
 - `NEXTAUTH_URL` - App URL
 
-AI (at least one):
+**AI (at least one):**
+- `GOOGLE_AI_API_KEY` - For Google AI/Gemini (recommended)
 - `GCP_PROJECT_ID` + `VERTEX_AI_MODEL` - For Vertex AI
 - `TOGETHER_API_KEY` - For Together.ai
 - `ANTHROPIC_API_KEY` - For Claude
-- (none) - For Ollama
-
-BHASHINI (optional):
-- `BHASHINI_USER_ID` - ULCA user ID
-- `BHASHINI_API_KEY` - ULCA API key
+- (none) - For Ollama (local)
 
 See [.env.example](./.env.example) for full list.
 
 ---
 
-## Contributing
+## Test Accounts (Production)
 
-1. Fork the repository
-2. Create feature branch: `git checkout -b feature/my-feature`
-3. Make changes and test: `npm test`
-4. Commit: `git commit -m "feat: add my feature"`
-5. Push: `git push origin feature/my-feature`
-6. Create Pull Request
+| Role | Email | Password |
+|------|-------|----------|
+| Admin | admin@thestai.com | AIPathshala2026! |
+| Teacher | testteacher@thestai.com | TestTeacher2026! |
+| Student | teststudent@thestai.com | TestStudent2026! |
 
 ---
 
@@ -273,8 +240,8 @@ See [.env.example](./.env.example) for full list.
 
 ## License
 
-Copyright © 2024 THEST AI Private Limited. All rights reserved.
+Copyright 2024 THEST AI Private Limited. All rights reserved.
 
 ---
 
-**Made with ❤️ in India for Indian Schools**
+**Made in India for Indian Schools**

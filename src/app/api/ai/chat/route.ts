@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { chatWithClaude, ChatMessage } from '@/lib/ai/qwen'
+import { chatWithAI, ChatMessage } from '@/lib/ai/provider'
 import { getChatSystemPrompt } from '@/lib/prompts/chat'
 import { Language } from '@prisma/client'
 import { prisma } from '@/lib/db/prisma'
@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
       { role: 'user' as const, content: message },
     ]
 
-    const response = await chatWithClaude(systemPrompt, messages, {
+    const response = await chatWithAI(systemPrompt, messages, {
       maxTokens: 1024,
     })
 
