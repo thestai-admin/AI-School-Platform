@@ -23,7 +23,11 @@ COPY . .
 RUN npx prisma generate
 
 # Build the application
+# DATABASE_URL is needed at build time for Prisma client initialization
+# This is a placeholder - the actual URL is provided at runtime via Cloud Run env vars
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV DATABASE_URL="postgresql://placeholder:placeholder@localhost:5432/placeholder"
+ENV DIRECT_URL="postgresql://placeholder:placeholder@localhost:5432/placeholder"
 RUN npm run build
 
 # Production image, copy all the files and run next
