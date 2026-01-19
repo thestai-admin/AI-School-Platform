@@ -37,18 +37,16 @@ enum HomeworkStatus {
 enum BhashiniLanguage {
   hi  // Hindi
   en  // English
-  // Future expansion:
-  // bn  // Bengali
-  // ta  // Tamil
-  // te  // Telugu
-  // mr  // Marathi
-  // gu  // Gujarati
-  // kn  // Kannada
-  // ml  // Malayalam
-  // pa  // Punjabi
-  // or  // Odia
-  // as  // Assamese
-  // ur  // Urdu
+  bn  // Bengali
+  ta  // Tamil
+  te  // Telugu
+  mr  // Marathi
+  gu  // Gujarati
+  kn  // Kannada
+  ml  // Malayalam
+  pa  // Punjabi
+  or  // Odia
+  as  // Assamese
 }
 
 enum SessionStatus {
