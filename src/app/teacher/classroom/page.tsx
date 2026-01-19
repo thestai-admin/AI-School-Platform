@@ -177,14 +177,12 @@ export default function TeacherClassroomPage() {
                 value={selectedClass}
                 onChange={(e) => setSelectedClass(e.target.value)}
                 className="w-full"
-              >
-                <option value="">Select a class</option>
-                {classes.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    Class {c.grade} - {c.name}
-                  </option>
-                ))}
-              </Select>
+                placeholder="Select a class"
+                options={classes.map((c) => ({
+                  value: c.id,
+                  label: `Class ${c.grade} - ${c.name}`,
+                }))}
+              />
             </div>
 
             <div>
@@ -195,14 +193,12 @@ export default function TeacherClassroomPage() {
                 value={selectedSubject}
                 onChange={(e) => setSelectedSubject(e.target.value)}
                 className="w-full"
-              >
-                <option value="">Select a subject</option>
-                {subjects.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </Select>
+                placeholder="Select a subject"
+                options={subjects.map((s) => ({
+                  value: s.id,
+                  label: s.name,
+                }))}
+              />
             </div>
           </div>
 
