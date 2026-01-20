@@ -107,7 +107,7 @@ export default function TeacherDashboard() {
   ]
 
   return (
-    <div>
+    <div data-testid="page-teacher-dashboard">
       {/* Welcome Header */}
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900">

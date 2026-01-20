@@ -77,7 +77,7 @@ model School {
 model User {
   id                 String   @id @default(cuid())
   email              String   @unique
-  password           String
+  password           String?  // Optional for OAuth users (Google, etc.)
   name               String
   phone              String?
   role               UserRole

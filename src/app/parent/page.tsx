@@ -7,7 +7,7 @@ export default function ParentDashboard() {
   const { data: session } = useSession()
 
   return (
-    <div>
+    <div data-testid="page-parent-dashboard">
       {/* Welcome Header */}
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900">

@@ -133,7 +133,7 @@ export default function HomeworkDetailPage({ params }: { params: Promise<{ id: s
   }
 
   return (
-    <div>
+    <div data-testid="page-teacher-homework-detail">
       {/* Header */}
       <div className="mb-6">
         <Link href="/teacher/homework" className="text-blue-600 hover:underline text-sm mb-2 inline-block">

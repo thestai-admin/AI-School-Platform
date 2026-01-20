@@ -15,7 +15,7 @@ export default function StudentProgressPage() {
   ]
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div data-testid="page-student-progress" className="max-w-4xl mx-auto">
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900">My Progress</h1>

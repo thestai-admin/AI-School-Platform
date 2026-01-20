@@ -44,7 +44,7 @@ export default function StudentDashboard() {
   ]
 
   return (
-    <div>
+    <div data-testid="page-student-dashboard">
       {/* Welcome Header */}
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900">

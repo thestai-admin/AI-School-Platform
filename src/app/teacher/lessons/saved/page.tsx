@@ -77,7 +77,7 @@ export default function SavedLessonsPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div data-testid="page-teacher-lessons-saved" className="max-w-4xl mx-auto">
       <div className="mb-8 flex justify-between items-start">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Saved Lessons</h1>

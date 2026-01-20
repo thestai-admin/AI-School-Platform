@@ -14,7 +14,7 @@ export default function AdminDashboard() {
   ]
 
   return (
-    <div>
+    <div data-testid="page-admin-dashboard">
       {/* Welcome Header */}
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900">

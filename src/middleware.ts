@@ -23,13 +23,14 @@ function addSecurityHeaders(response: NextResponse): NextResponse {
     'Content-Security-Policy',
     [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com",
       "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: https:",
+      "img-src 'self' data: https: https://*.googleusercontent.com",
       "font-src 'self' data:",
-      "connect-src 'self' https://generativelanguage.googleapis.com",
+      "connect-src 'self' https://generativelanguage.googleapis.com https://accounts.google.com https://oauth2.googleapis.com",
       "media-src 'self' blob: data:",
       "worker-src 'self' blob:",
+      "frame-src 'self' https://accounts.google.com",
     ].join('; ')
   )
   // Strict Transport Security (HTTPS only)

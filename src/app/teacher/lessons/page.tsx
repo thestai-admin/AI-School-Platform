@@ -120,7 +120,7 @@ export default function LessonPlannerPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto">
+    <div data-testid="page-teacher-lessons" className="max-w-6xl mx-auto">
       <div className="mb-8 flex justify-between items-start">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">AI Lesson Planner</h1>

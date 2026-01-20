@@ -68,7 +68,7 @@ export default function TeacherHomeworkPage() {
   }
 
   return (
-    <div>
+    <div data-testid="page-teacher-homework">
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <div>

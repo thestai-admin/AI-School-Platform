@@ -116,7 +116,7 @@ export default function ParentHomeworkPage() {
   const stats = selectedChildData ? calculateStats(selectedChildData.homework) : null
 
   return (
-    <div>
+    <div data-testid="page-parent-homework">
       <h1 className="text-2xl font-bold text-gray-900 mb-6">Child&apos;s Homework</h1>
 
       {/* Child Selector (if multiple children) */}

@@ -97,7 +97,7 @@ export default function StudentHomeworkPage() {
   }
 
   return (
-    <div>
+    <div data-testid="page-student-homework">
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">My Homework</h1>

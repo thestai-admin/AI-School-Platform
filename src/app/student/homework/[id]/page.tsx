@@ -158,7 +158,7 @@ export default function StudentHomeworkDetailPage({ params }: { params: Promise<
   }
 
   return (
-    <div className="max-w-3xl mx-auto">
+    <div data-testid="page-student-homework-detail" className="max-w-3xl mx-auto">
       {/* Header */}
       <div className="mb-6">
         <Link href="/student/homework" className="text-blue-600 hover:underline text-sm mb-2 inline-block">

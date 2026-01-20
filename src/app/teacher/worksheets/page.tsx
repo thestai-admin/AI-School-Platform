@@ -144,7 +144,7 @@ export default function WorksheetGeneratorPage() {
   const totalMarks = questions.reduce((sum, q) => sum + q.marks, 0)
 
   return (
-    <div className="max-w-6xl mx-auto">
+    <div data-testid="page-teacher-worksheets" className="max-w-6xl mx-auto">
       <div className="mb-8 flex justify-between items-start">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Worksheet Generator</h1>

@@ -107,7 +107,7 @@ export default function StudentChatPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto h-[calc(100vh-10rem)]">
+    <div data-testid="page-student-chat" className="max-w-4xl mx-auto h-[calc(100vh-10rem)]">
       <div className="flex flex-col h-full">
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
