@@ -18,6 +18,8 @@ FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+# Cache buster - change this to force rebuild
+ARG CACHE_BUST=1
 
 # Generate Prisma client
 RUN npx prisma generate
