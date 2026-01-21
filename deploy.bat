@@ -1,8 +1,8 @@
 @echo off
-REM Deploy to ai-pathshala service (the one mapped to thestai.com via load balancer)
-REM NOTE: The ai-school-platform service is NOT used - thestai.com routes to ai-pathshala
+REM Deploy to Cloud Run (thestai.com)
+REM Service: ai-pathshala | Region: asia-south1 | Project: ai-pathshala-prod
 
-echo Deploying to ai-pathshala service...
+echo Deploying to Cloud Run...
 call "C:\Program Files (x86)\Google\Cloud SDK\google-cloud-sdk\bin\gcloud" run deploy ai-pathshala ^
   --image=asia-south1-docker.pkg.dev/ai-pathshala-prod/ai-school-platform/app:latest ^
   --region=asia-south1 ^
@@ -16,4 +16,4 @@ call "C:\Program Files (x86)\Google\Cloud SDK\google-cloud-sdk\bin\gcloud" run d
 
 echo.
 echo Deployment complete!
-echo Service URL: https://thestai.com
+echo URL: https://thestai.com
