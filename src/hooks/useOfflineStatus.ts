@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 
 interface UseOfflineStatusReturn {
   isOnline: boolean
@@ -16,22 +16,20 @@ export function useOfflineStatus(): UseOfflineStatusReturn {
   )
   const [wasOffline, setWasOffline] = useState(false)
 
-  // Callback refs for event handlers
-  const onlineCallbacks = new Set<() => void>()
-  const offlineCallbacks = new Set<() => void>()
+  // Use refs to store callbacks - persists across renders and can be modified
+  const onlineCallbacksRef = useRef(new Set<() => void>())
+  const offlineCallbacksRef = useRef(new Set<() => void>())
 
   useEffect(() => {
     const handleOnline = () => {
       setIsOnline(true)
-      if (!isOnline) {
-        setWasOffline(true)
-      }
-      onlineCallbacks.forEach((cb) => cb())
+      setWasOffline(true)
+      onlineCallbacksRef.current.forEach((cb) => cb())
     }
 
     const handleOffline = () => {
       setIsOnline(false)
-      offlineCallbacks.forEach((cb) => cb())
+      offlineCallbacksRef.current.forEach((cb) => cb())
     }
 
     window.addEventListener('online', handleOnline)
@@ -41,21 +39,21 @@ export function useOfflineStatus(): UseOfflineStatusReturn {
       window.removeEventListener('online', handleOnline)
       window.removeEventListener('offline', handleOffline)
     }
-  }, [isOnline])
+  }, [])
 
   // Subscribe to online events
   const onOnline = useCallback((callback: () => void) => {
-    onlineCallbacks.add(callback)
+    onlineCallbacksRef.current.add(callback)
     return () => {
-      onlineCallbacks.delete(callback)
+      onlineCallbacksRef.current.delete(callback)
     }
   }, [])
 
   // Subscribe to offline events
   const onOffline = useCallback((callback: () => void) => {
-    offlineCallbacks.add(callback)
+    offlineCallbacksRef.current.add(callback)
     return () => {
-      offlineCallbacks.delete(callback)
+      offlineCallbacksRef.current.delete(callback)
     }
   }, [])
 
