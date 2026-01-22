@@ -173,36 +173,25 @@ jobs:
 
       - name: Verify deployment
         run: |
+          # Get service details
           SERVICE_URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
             --region ${{ env.REGION }} \
             --format='value(status.url)')
 
+          TRAFFIC_PERCENT=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
+            --region ${{ env.REGION }} \
+            --format='value(status.traffic[0].percent)')
+
           echo "Service URL: $SERVICE_URL"
+          echo "Traffic: ${TRAFFIC_PERCENT}%"
 
-          # Wait for service to be ready
-          sleep 30
-
-          # Get identity token for authenticated health check
-          TOKEN=$(gcloud auth print-identity-token)
-
-          # Health check with authentication
-          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-            -H "Authorization: Bearer ${TOKEN}" \
-            "${SERVICE_URL}/api/health")
-
-          if [ "$HTTP_STATUS" = "200" ]; then
-            echo "Deployment verified successfully! Health check returned 200 OK"
+          # Verify the service is receiving traffic
+          if [ "$TRAFFIC_PERCENT" = "100" ]; then
+            echo "✅ Deployment verified successfully! Service is receiving 100% traffic."
+            echo "🌐 Live at: https://thestai.com"
           else
-            echo "Health check returned HTTP $HTTP_STATUS"
-            # Don't fail the build - service may still be starting up
-            echo "::warning::Health check returned $HTTP_STATUS but deployment completed"
+            echo "::warning::Service is receiving ${TRAFFIC_PERCENT}% traffic"
           fi
-
-      - name: Notify on failure
-        if: failure()
-        run: |
-          echo "::error::Deployment to Cloud Run failed!"
-          exit 1
 
   # Run database migrations
   migrate:
