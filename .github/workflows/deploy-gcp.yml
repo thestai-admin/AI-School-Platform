@@ -152,7 +152,6 @@ jobs:
           region: ${{ env.REGION }}
           image: ${{ needs.build.outputs.image_url }}
           flags: |
-            --allow-unauthenticated
             --min-instances=1
             --max-instances=3
             --memory=512Mi
