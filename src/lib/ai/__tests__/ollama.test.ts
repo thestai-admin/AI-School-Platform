@@ -14,10 +14,10 @@ describe('Ollama Integration', () => {
     vi.clearAllMocks()
   })
 
-  it('generateWithClaude returns a string response', async () => {
-    const { generateWithClaude } = await import('../ollama')
+  it('generateWithOllama returns a string response', async () => {
+    const { generateWithOllama } = await import('../ollama')
 
-    const result = await generateWithClaude(
+    const result = await generateWithOllama(
       'You are a helpful assistant.',
       'Hello, how are you?'
     )
@@ -26,8 +26,8 @@ describe('Ollama Integration', () => {
     expect(result).toBe('Test response from Ollama')
   })
 
-  it('chatWithClaude handles multi-turn conversation', async () => {
-    const { chatWithClaude } = await import('../ollama')
+  it('chatWithOllama handles multi-turn conversation', async () => {
+    const { chatWithOllama } = await import('../ollama')
 
     const messages = [
       { role: 'user' as const, content: 'Hi' },
@@ -35,7 +35,7 @@ describe('Ollama Integration', () => {
       { role: 'user' as const, content: 'How are you?' }
     ]
 
-    const result = await chatWithClaude(
+    const result = await chatWithOllama(
       'You are a friendly tutor.',
       messages
     )
@@ -45,9 +45,9 @@ describe('Ollama Integration', () => {
   })
 
   it('respects maxTokens option', async () => {
-    const { generateWithClaude } = await import('../ollama')
+    const { generateWithOllama } = await import('../ollama')
 
-    const result = await generateWithClaude(
+    const result = await generateWithOllama(
       'System prompt',
       'User message',
       { maxTokens: 100 }
