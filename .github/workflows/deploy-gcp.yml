@@ -18,7 +18,7 @@ on:
           - staging
 
 env:
-  PROJECT_ID: thestai-platform
+  PROJECT_ID: ai-pathshala-prod
   REGION: asia-south1
   SERVICE_NAME: ai-school-platform
   REGISTRY: gcr.io
