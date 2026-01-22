@@ -257,3 +257,64 @@ jobs:
             npx prisma migrate deploy
 
           echo "Migrations completed successfully!"
+
+  # Send email notification
+  notify:
+    name: Send Email Notification
+    runs-on: ubuntu-latest
+    needs: [test, build, deploy, migrate]
+    if: always()
+
+    steps:
+      - name: Send success email
+        if: ${{ needs.migrate.result == 'success' }}
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: ${{ secrets.SMTP_SERVER }}
+          server_port: ${{ secrets.SMTP_PORT }}
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+          subject: "✅ Deployment Successful - AI School Platform"
+          to: ${{ secrets.NOTIFICATION_EMAIL }}
+          from: ${{ secrets.SMTP_USERNAME }}
+          body: |
+            Deployment to production completed successfully!
+
+            📦 Commit: ${{ github.sha }}
+            📝 Message: ${{ github.event.head_commit.message }}
+            👤 Author: ${{ github.event.head_commit.author.name }}
+            🔗 Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            🌐 Site: https://thestai.com
+
+            All stages completed:
+            - ✅ Tests passed
+            - ✅ Docker image built and pushed
+            - ✅ Deployed to Cloud Run
+            - ✅ Database migrations applied
+
+      - name: Send failure email
+        if: ${{ needs.migrate.result == 'failure' || needs.deploy.result == 'failure' || needs.build.result == 'failure' || needs.test.result == 'failure' }}
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: ${{ secrets.SMTP_SERVER }}
+          server_port: ${{ secrets.SMTP_PORT }}
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+          subject: "❌ Deployment Failed - AI School Platform"
+          to: ${{ secrets.NOTIFICATION_EMAIL }}
+          from: ${{ secrets.SMTP_USERNAME }}
+          body: |
+            Deployment to production FAILED!
+
+            📦 Commit: ${{ github.sha }}
+            📝 Message: ${{ github.event.head_commit.message }}
+            👤 Author: ${{ github.event.head_commit.author.name }}
+            🔗 Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+            Stage results:
+            - Test: ${{ needs.test.result }}
+            - Build: ${{ needs.build.result }}
+            - Deploy: ${{ needs.deploy.result }}
+            - Migrate: ${{ needs.migrate.result }}
+
+            Please check the workflow run for details.
