@@ -28,6 +28,10 @@ npx prisma db seed       # Seed database with default subjects
 # School Management
 npx tsx scripts/create-school.ts  # Create a new school with admin user (interactive)
 # Or with env vars: SCHOOL_NAME="My School" SCHOOL_SLUG="myschool" ADMIN_EMAIL="admin@example.com" npx tsx scripts/create-school.ts
+npx tsx scripts/seed-dav-school.ts  # Seed DAV school data
+
+# GCP Setup
+./scripts/setup-github-gcp-auth.sh  # Setup GitHub Actions auth with GCP
 ```
 
 ## Architecture Overview
@@ -70,6 +74,10 @@ Prompt templates are in `src/lib/prompts/` and support three languages: English,
 
 **Database**: PostgreSQL with Prisma ORM using the `pg` adapter (required for Prisma 7+). The Prisma client is singleton-cached in `src/lib/db/prisma.ts` to prevent connection issues in development. Use `docker-compose up -d` to start a local PostgreSQL instance (port 5433).
 
+**Docker**: Multi-stage Dockerfile uses standalone Next.js build for minimal production image (~150MB). The build requires placeholder DATABASE_URL at build time for Prisma client generation. Uses Cloud SQL Proxy for database connections in Cloud Run.
+
+**Build Configuration**: Uses Next.js standalone output mode (`output: 'standalone'` in next.config.js) for optimized Docker deployments with minimal dependencies.
+
 ### Testing
 
 Test files are co-located with source code in `__tests__/` directories (e.g., `src/lib/ai/__tests__/`). Uses Vitest with React Testing Library. Mock external dependencies in tests.
@@ -97,6 +105,19 @@ All API routes check `getServerSession(authOptions)` for authentication.
 
 Key enums from Prisma: `UserRole`, `Language` (ENGLISH/HINDI/MIXED), `Difficulty` (EASY/MEDIUM/HARD), `HomeworkStatus` (PENDING/SUBMITTED/GRADED/LATE)
 
+### CI/CD Pipeline
+
+GitHub Actions workflow (`.github/workflows/deploy-gcp.yml`) runs on push to main:
+1. **Test** - Runs tests with PostgreSQL service container
+2. **Build** - Builds Docker image and pushes to Artifact Registry
+3. **Deploy** - Deploys to Cloud Run with auto-migration
+4. **Notify** - Sends email notifications on success/failure
+
+The workflow uses Workload Identity Federation for secure GCP authentication and deploys with:
+- Min instances: 1, Max instances: 3
+- Memory: 512Mi, CPU: 1
+- Auto-connects to Cloud SQL via Unix socket
+
 ### UI Components
 
 Custom components in `src/components/ui/` use Tailwind CSS with variant/size props pattern:
@@ -122,8 +143,6 @@ chmod +x scripts/deploy-gcp.sh
 ./scripts/deploy-gcp.sh deploy     # Deploy to Cloud Run
 ./scripts/deploy-gcp.sh domain thestai.com  # Configure domain
 ```
-
-See `GCP_DEPLOYMENT.md` for detailed instructions.
 
 ### Terraform (Infrastructure as Code)
 
