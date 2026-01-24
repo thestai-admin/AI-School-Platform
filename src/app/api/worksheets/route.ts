@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/db/prisma'
 import { Language, Difficulty } from '@prisma/client'
 
-// GET /api/worksheets - List worksheets for authenticated teacher
+// GET /api/worksheets - List worksheets for authenticated user
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
@@ -18,20 +18,67 @@ export async function GET(request: NextRequest) {
     const difficulty = searchParams.get('difficulty')
     const limit = searchParams.get('limit')
 
-    const worksheets = await prisma.worksheet.findMany({
-      where: {
-        createdById: session.user.id,
-        ...(subjectId && { subjectId }),
-        ...(difficulty && { difficulty: difficulty as Difficulty }),
-      },
-      include: {
-        subject: true,
-      },
-      orderBy: { createdAt: 'desc' },
-      ...(limit && { take: parseInt(limit) }),
-    })
+    // Teachers see worksheets they created
+    if (session.user.role === 'TEACHER') {
+      const worksheets = await prisma.worksheet.findMany({
+        where: {
+          createdById: session.user.id,
+          ...(subjectId && { subjectId }),
+          ...(difficulty && { difficulty: difficulty as Difficulty }),
+        },
+        include: {
+          subject: true,
+        },
+        orderBy: { createdAt: 'desc' },
+        ...(limit && { take: parseInt(limit) }),
+      })
 
-    return NextResponse.json({ worksheets })
+      return NextResponse.json({ worksheets })
+    }
+
+    // Students see worksheets assigned to their class
+    if (session.user.role === 'STUDENT') {
+      const student = await prisma.student.findUnique({
+        where: { userId: session.user.id },
+      })
+
+      if (!student) {
+        return NextResponse.json({ error: 'Student profile not found' }, { status: 404 })
+      }
+
+      const worksheets = await prisma.worksheet.findMany({
+        where: {
+          classId: student.classId,
+          ...(subjectId && { subjectId }),
+          ...(difficulty && { difficulty: difficulty as Difficulty }),
+        },
+        include: {
+          subject: true,
+          createdBy: { select: { name: true } },
+          responses: {
+            where: { studentId: student.id },
+            select: {
+              id: true,
+              score: true,
+              completedAt: true,
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        ...(limit && { take: parseInt(limit) }),
+      })
+
+      // Add completion status
+      const worksheetsWithStatus = worksheets.map(worksheet => ({
+        ...worksheet,
+        response: worksheet.responses[0] || null,
+        isCompleted: worksheet.responses.length > 0,
+      }))
+
+      return NextResponse.json({ worksheets: worksheetsWithStatus })
+    }
+
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   } catch (error) {
     console.error('Error fetching worksheets:', error)
     return NextResponse.json(

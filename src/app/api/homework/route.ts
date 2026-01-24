@@ -40,30 +40,58 @@ export async function GET(request: NextRequest) {
         ...(limit && { take: parseInt(limit) }),
       })
 
-      // Calculate submission stats for each homework
-      const homeworkWithStats = await Promise.all(
-        homework.map(async (hw) => {
-          const totalStudents = await prisma.student.count({
-            where: { classId: hw.classId },
-          })
-          const submittedCount = await prisma.homeworkSubmission.count({
-            where: { homeworkId: hw.id, status: { in: ['SUBMITTED', 'GRADED'] } },
-          })
-          const gradedCount = await prisma.homeworkSubmission.count({
-            where: { homeworkId: hw.id, status: 'GRADED' },
-          })
+      // Calculate submission stats for each homework efficiently
+      // Get unique class IDs
+      const uniqueClassIds = [...new Set(homework.map(hw => hw.classId))]
 
-          return {
-            ...hw,
-            stats: {
-              totalStudents,
-              submittedCount,
-              gradedCount,
-              pendingCount: totalStudents - submittedCount,
-            },
-          }
-        })
+      // Fetch student counts for all classes in one query
+      const studentCounts = await prisma.student.groupBy({
+        by: ['classId'],
+        where: { classId: { in: uniqueClassIds } },
+        _count: { id: true },
+      })
+
+      const studentCountMap = new Map(
+        studentCounts.map(sc => [sc.classId, sc._count.id])
       )
+
+      // Fetch submission stats for all homework in one query
+      const homeworkIds = homework.map(hw => hw.id)
+      const submissionStats = await prisma.homeworkSubmission.groupBy({
+        by: ['homeworkId', 'status'],
+        where: { homeworkId: { in: homeworkIds } },
+        _count: { id: true },
+      })
+
+      // Build submission stats map
+      const submissionStatsMap = new Map<string, { submitted: number; graded: number }>()
+
+      for (const stat of submissionStats) {
+        const current = submissionStatsMap.get(stat.homeworkId) || { submitted: 0, graded: 0 }
+        if (stat.status === 'SUBMITTED' || stat.status === 'GRADED') {
+          current.submitted += stat._count.id
+        }
+        if (stat.status === 'GRADED') {
+          current.graded += stat._count.id
+        }
+        submissionStatsMap.set(stat.homeworkId, current)
+      }
+
+      // Combine data
+      const homeworkWithStats = homework.map(hw => {
+        const totalStudents = studentCountMap.get(hw.classId) || 0
+        const stats = submissionStatsMap.get(hw.id) || { submitted: 0, graded: 0 }
+
+        return {
+          ...hw,
+          stats: {
+            totalStudents,
+            submittedCount: stats.submitted,
+            gradedCount: stats.graded,
+            pendingCount: totalStudents - stats.submitted,
+          },
+        }
+      })
 
       return NextResponse.json({ homework: homeworkWithStats })
     }
@@ -143,39 +171,57 @@ export async function GET(request: NextRequest) {
         },
       })
 
-      const childrenHomework = await Promise.all(
-        children.map(async (child) => {
-          const homework = await prisma.homework.findMany({
-            where: { classId: child.classId },
-            include: {
-              subject: true,
-              submissions: {
-                where: { studentId: child.id },
-                select: {
-                  status: true,
-                  totalScore: true,
-                  percentage: true,
-                  submittedAt: true,
-                },
-              },
-            },
-            orderBy: { dueDate: 'desc' },
-            take: 10,
-          })
+      if (children.length === 0) {
+        return NextResponse.json({ homework: [] })
+      }
 
-          return {
-            child: {
-              id: child.id,
-              name: child.user.name,
-              class: child.class.name,
+      // Get all unique class IDs
+      const classIds = [...new Set(children.map(c => c.classId))]
+      const studentIds = children.map(c => c.id)
+
+      // Fetch all homework for all classes in one query
+      const allHomework = await prisma.homework.findMany({
+        where: { classId: { in: classIds } },
+        include: {
+          subject: true,
+          submissions: {
+            where: { studentId: { in: studentIds } },
+            select: {
+              studentId: true,
+              status: true,
+              totalScore: true,
+              percentage: true,
+              submittedAt: true,
             },
-            homework: homework.map((hw) => ({
-              ...hw,
-              submission: hw.submissions[0] || null,
-            })),
-          }
-        })
-      )
+          },
+        },
+        orderBy: { dueDate: 'desc' },
+        take: 10 * children.length, // Get more to ensure each child has enough
+      })
+
+      // Group homework by child
+      const childrenHomework = children.map((child) => {
+        // Filter homework for this child's class
+        const childHomework = allHomework
+          .filter(hw => hw.classId === child.classId)
+          .slice(0, 10) // Limit to 10 per child
+          .map(hw => ({
+            ...hw,
+            submissions: hw.submissions.filter(sub => sub.studentId === child.id),
+          }))
+
+        return {
+          child: {
+            id: child.id,
+            name: child.user.name,
+            class: child.class.name,
+          },
+          homework: childHomework.map((hw) => ({
+            ...hw,
+            submission: hw.submissions[0] || null,
+          })),
+        }
+      })
 
       return NextResponse.json({ childrenHomework })
     }

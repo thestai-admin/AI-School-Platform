@@ -23,7 +23,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       include: {
         subject: true,
         class: true,
-        createdBy: { select: { schoolId: true } },
+        createdBy: { select: { name: true, schoolId: true } },
       },
     })
 
@@ -34,6 +34,33 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     // Teachers can only view their own worksheets
     if (session.user.role === 'TEACHER' && worksheet.createdById !== session.user.id) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    // Students can view worksheets assigned to their class
+    if (session.user.role === 'STUDENT') {
+      const student = await prisma.student.findUnique({
+        where: { userId: session.user.id },
+      })
+
+      if (!student) {
+        return NextResponse.json({ error: 'Student profile not found' }, { status: 404 })
+      }
+
+      if (worksheet.classId !== student.classId) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      }
+
+      // Include student's response if exists
+      const response = await prisma.worksheetResponse.findUnique({
+        where: {
+          studentId_worksheetId: {
+            studentId: student.id,
+            worksheetId: id,
+          },
+        },
+      })
+
+      return NextResponse.json({ worksheet, response })
     }
 
     // Admins can only view worksheets created by users in their school
