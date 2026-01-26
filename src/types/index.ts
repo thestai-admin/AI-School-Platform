@@ -2,6 +2,9 @@ import { UserRole, Language, Difficulty } from '@prisma/client'
 
 export type { UserRole, Language, Difficulty }
 
+// Diagram types
+export * from './diagram'
+
 export interface ApiResponse<T = unknown> {
   success: boolean
   data?: T

@@ -55,6 +55,21 @@ enum SessionStatus {
   ENDED
 }
 
+// Diagram visibility levels
+enum DiagramVisibility {
+  PRIVATE // Only creator
+  CLASS   // Class members
+  SCHOOL  // All school users
+}
+
+// Diagram types
+enum DiagramType {
+  FLOWCHART
+  DECISION_TREE
+  CONCEPT_MAP
+  LESSON_FLOW
+}
+
 // Models
 model School {
   id        String   @id @default(cuid())
@@ -68,8 +83,9 @@ model School {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  users   User[]
-  classes Class[]
+  users    User[]
+  classes  Class[]
+  diagrams Diagram[]
 
   @@index([slug])
 }
@@ -102,6 +118,9 @@ model User {
 
   // BHASHINI Live Classroom
   classroomSessions ClassroomSession[]
+
+  // Diagrams
+  diagrams Diagram[] @relation("CreatedDiagrams")
 
   @@index([schoolId])
   @@index([role])
@@ -160,6 +179,7 @@ model Class {
   worksheets        Worksheet[]
   homeworks         Homework[]
   classroomSessions ClassroomSession[]
+  diagrams          Diagram[]
 
   @@index([schoolId])
   @@index([schoolId, grade])
@@ -238,6 +258,9 @@ model Lesson {
 
   subjectId String
   subject   Subject @relation(fields: [subjectId], references: [id])
+
+  // Optional diagram for visual lesson flow
+  diagram Diagram?
 
   @@index([teacherId])
   @@index([classId])
@@ -497,4 +520,40 @@ model LanguageProgress {
 
   @@unique([studentId, language])
   @@index([studentId])
+}
+
+// ========================
+// Visual Diagrams
+// ========================
+
+model Diagram {
+  id          String            @id @default(cuid())
+  title       String
+  description String?           @db.Text
+  type        DiagramType       @default(FLOWCHART)
+  visibility  DiagramVisibility @default(PRIVATE)
+
+  nodes    Json  // React Flow nodes array
+  edges    Json  // React Flow edges array
+  viewport Json? // {x, y, zoom}
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  createdById String
+  createdBy   User   @relation("CreatedDiagrams", fields: [createdById], references: [id])
+
+  schoolId String
+  school   School @relation(fields: [schoolId], references: [id])
+
+  classId String?
+  class   Class?  @relation(fields: [classId], references: [id])
+
+  lessonId String?  @unique
+  lesson   Lesson?  @relation(fields: [lessonId], references: [id])
+
+  @@index([createdById])
+  @@index([schoolId])
+  @@index([classId])
+  @@index([schoolId, visibility])
 }
