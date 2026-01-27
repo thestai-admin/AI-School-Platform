@@ -97,7 +97,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       },
     })
 
-    if (!module || trainingModule.status !== 'PUBLISHED') {
+    if (!trainingModule || trainingModule.status !== 'PUBLISHED') {
       return NextResponse.json(
         { error: 'Module not found or not available' },
         { status: 404 }

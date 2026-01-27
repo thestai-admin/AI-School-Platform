@@ -43,7 +43,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     }
 
     // Check if module is published or user is admin
-    if (module.status !== 'PUBLISHED' && session.user.role !== UserRole.ADMIN) {
+    if (trainingModule.status !== 'PUBLISHED' && session.user.role !== UserRole.ADMIN) {
       return NextResponse.json({ error: 'Module not available' }, { status: 403 })
     }
 
@@ -59,16 +59,16 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     // Get prerequisite modules info
     let prerequisites: { id: string; title: string; completed: boolean }[] = []
-    if (module.prerequisites.length > 0) {
+    if (trainingModule.prerequisites.length > 0) {
       const prereqModules = await prisma.trainingModule.findMany({
-        where: { id: { in: module.prerequisites } },
+        where: { id: { in: trainingModule.prerequisites } },
         select: { id: true, title: true },
       })
 
       const prereqProgress = await prisma.teacherTrainingProgress.findMany({
         where: {
           teacherId: session.user.id,
-          moduleId: { in: module.prerequisites },
+          moduleId: { in: trainingModule.prerequisites },
           status: 'COMPLETED',
         },
         select: { moduleId: true },
@@ -86,7 +86,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({
       module: {
         ...trainingModule,
-        enrolledCount: module._count.progress,
+        enrolledCount: trainingModule._count.progress,
         userProgress,
         prerequisites,
       },
