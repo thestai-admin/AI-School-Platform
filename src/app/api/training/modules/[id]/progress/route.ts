@@ -87,7 +87,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const { progress, quizScores, timeSpentMins, action } = body
 
     // Verify module exists and is published
-    const module = await prisma.trainingModule.findUnique({
+    const trainingModule = await prisma.trainingModule.findUnique({
       where: { id: moduleId },
       select: {
         id: true,
@@ -97,7 +97,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       },
     })
 
-    if (!module || module.status !== 'PUBLISHED') {
+    if (!module || trainingModule.status !== 'PUBLISHED') {
       return NextResponse.json(
         { error: 'Module not found or not available' },
         { status: 404 }
@@ -105,16 +105,16 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     // Check prerequisites are completed
-    if (module.prerequisites.length > 0) {
+    if (trainingModule.prerequisites.length > 0) {
       const completedPrereqs = await prisma.teacherTrainingProgress.count({
         where: {
           teacherId: session.user.id,
-          moduleId: { in: module.prerequisites },
+          moduleId: { in: trainingModule.prerequisites },
           status: 'COMPLETED',
         },
       })
 
-      if (completedPrereqs < module.prerequisites.length) {
+      if (completedPrereqs < trainingModule.prerequisites.length) {
         return NextResponse.json(
           { error: 'Please complete prerequisite modules first' },
           { status: 400 }

@@ -28,7 +28,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   const { id } = await params
 
   try {
-    const module = await prisma.trainingModule.findUnique({
+    const trainingModule = await prisma.trainingModule.findUnique({
       where: { id },
       include: {
         category: true,
@@ -38,7 +38,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       },
     })
 
-    if (!module) {
+    if (!trainingModule) {
       return NextResponse.json({ error: 'Module not found' }, { status: 404 })
     }
 
@@ -85,7 +85,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     return NextResponse.json({
       module: {
-        ...module,
+        ...trainingModule,
         enrolledCount: module._count.progress,
         userProgress,
         prerequisites,
@@ -141,7 +141,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'Module not found' }, { status: 404 })
     }
 
-    const module = await prisma.trainingModule.update({
+    const trainingModule = await prisma.trainingModule.update({
       where: { id },
       data: {
         ...(title !== undefined && { title }),

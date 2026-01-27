@@ -125,7 +125,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const module = await prisma.trainingModule.create({
+    const trainingModule = await prisma.trainingModule.create({
       data: {
         title,
         description,

@@ -108,7 +108,7 @@ export default function SubscriptionsPage() {
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Subscription Management</h1>
-          <p className="text-gray-600 mt-1">Manage your school's subscription and features</p>
+          <p className="text-gray-600 mt-1">Manage your school&apos;s subscription and features</p>
         </div>
         {!editMode && (
           <Button variant="primary" onClick={() => setEditMode(true)}>

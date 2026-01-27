@@ -126,6 +126,26 @@ Custom components in `src/components/ui/` use Tailwind CSS with variant/size pro
 
 All client components are marked with `'use client'` directive.
 
+### State Management
+
+Zustand stores in `src/stores/`:
+- `diagramStore.ts` - React Flow diagram state (nodes, edges, viewport, selection)
+
+Stores use the pattern: state + actions + getters in a single `create<State>()` call.
+
+### Custom Hooks
+
+Located in `src/hooks/`:
+- `useOfflineStatus` - Detects network connectivity changes
+
+### Shared Types
+
+Common types in `src/types/`:
+- Re-exports Prisma enums: `UserRole`, `Language`, `Difficulty`, `DiagramType`, `DiagramVisibility`
+- API response wrappers: `ApiResponse<T>`, `PaginatedResponse<T>`
+- Form data interfaces: `LessonFormData`, `WorksheetFormData`
+- Diagram types for React Flow integration
+
 ### Path Aliases
 
 Use `@/*` to import from `src/*` (configured in tsconfig.json).
