@@ -83,9 +83,12 @@ model School {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  users    User[]
-  classes  Class[]
-  diagrams Diagram[]
+  users          User[]
+  classes        Class[]
+  diagrams       Diagram[]
+  subscription   SchoolSubscription?
+  featureUsage   FeatureUsage[]
+  communityPosts CommunityPost[]
 
   @@index([slug])
 }
@@ -121,6 +124,14 @@ model User {
 
   // Diagrams
   diagrams Diagram[] @relation("CreatedDiagrams")
+
+  // Teacher Training & Community
+  trainingProgress     TeacherTrainingProgress[]
+  certifications       TeacherCertification[]
+  communityPosts       CommunityPost[]    @relation("CommunityPostAuthor")
+  communityComments    CommunityComment[] @relation("CommunityCommentAuthor")
+  communityVotes       CommunityVote[]
+  performanceSnapshots TeacherPerformanceSnapshot[]
 
   @@index([schoolId])
   @@index([role])
@@ -238,6 +249,12 @@ model Student {
   sessionParticipations SessionParticipant[]
   peerMessages          PeerMessage[]
   languageProgress      LanguageProgress[]
+
+  // Elite Features: Study Companion & Learning Paths
+  studySessions  StudySession[]
+  learningPaths  PersonalizedLearningPath[]
+  practiceAttempts PracticeAttempt[]
+  studyAnalytics StudyAnalytics[]
 }
 
 model Lesson {
@@ -556,4 +573,424 @@ model Diagram {
   @@index([schoolId])
   @@index([classId])
   @@index([schoolId, visibility])
+}
+
+// ========================
+// PRODUCT TIERS & SUBSCRIPTIONS
+// ========================
+
+enum ProductTier {
+  STARTER
+  AFFORDABLE
+  ELITE
+  ENTERPRISE
+}
+
+model SchoolSubscription {
+  id          String      @id @default(cuid())
+  tier        ProductTier @default(AFFORDABLE)
+  startDate   DateTime    @default(now())
+  endDate     DateTime?
+  maxStudents Int         @default(500)
+  maxTeachers Int         @default(50)
+  features    Json?       // Override features for this subscription
+  isActive    Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  schoolId String @unique
+  school   School @relation(fields: [schoolId], references: [id])
+
+  @@index([tier])
+  @@index([isActive])
+}
+
+model FeatureUsage {
+  id         String   @id @default(cuid())
+  feature    String   // Feature identifier (e.g., 'ai_lesson_planning')
+  usageCount Int      @default(0)
+  usageDate  DateTime @default(now()) @db.Date
+
+  schoolId String
+  school   School @relation(fields: [schoolId], references: [id])
+
+  @@unique([schoolId, feature, usageDate])
+  @@index([schoolId])
+  @@index([feature])
+  @@index([usageDate])
+}
+
+// ========================
+// TEACHER TRAINING
+// ========================
+
+enum TrainingModuleStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum TrainingProgressStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+  CERTIFIED
+}
+
+enum CertificationLevel {
+  BRONZE
+  SILVER
+  GOLD
+  PLATINUM
+}
+
+model TrainingCategory {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?  @db.Text
+  icon        String?  // Icon identifier or emoji
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  modules TrainingModule[]
+
+  @@index([order])
+}
+
+model TrainingModule {
+  id            String               @id @default(cuid())
+  title         String
+  description   String?              @db.Text
+  subject       String?              // Optional subject focus
+  gradeRange    String?              // e.g., "1-5", "6-10"
+  content       Json                 // Module content (sections, videos, quizzes)
+  duration      Int                  // Estimated duration in minutes
+  difficulty    Difficulty           @default(MEDIUM)
+  language      Language             @default(ENGLISH)
+  status        TrainingModuleStatus @default(DRAFT)
+  prerequisites String[]             // Array of module IDs
+  tags          String[]
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  categoryId String?
+  category   TrainingCategory? @relation(fields: [categoryId], references: [id])
+
+  progress TeacherTrainingProgress[]
+
+  @@index([status])
+  @@index([categoryId])
+  @@index([subject])
+}
+
+model TeacherTrainingProgress {
+  id            String                 @id @default(cuid())
+  progress      Int                    @default(0) // 0-100 percentage
+  status        TrainingProgressStatus @default(NOT_STARTED)
+  startedAt     DateTime?
+  completedAt   DateTime?
+  quizScores    Json?                  // {quizId: score} mapping
+  timeSpentMins Int                    @default(0)
+  lastAccessedAt DateTime?
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+
+  teacherId String
+  teacher   User   @relation(fields: [teacherId], references: [id])
+
+  moduleId String
+  module   TrainingModule @relation(fields: [moduleId], references: [id])
+
+  @@unique([teacherId, moduleId])
+  @@index([teacherId])
+  @@index([moduleId])
+  @@index([status])
+}
+
+model TeacherCertification {
+  id         String             @id @default(cuid())
+  level      CertificationLevel
+  earnedAt   DateTime           @default(now())
+  validUntil DateTime?
+  badgeUrl   String?
+  metadata   Json?              // Additional certification data
+
+  teacherId String
+  teacher   User   @relation(fields: [teacherId], references: [id])
+
+  @@index([teacherId])
+  @@index([level])
+}
+
+model TeachingTip {
+  id            String   @id @default(cuid())
+  topic         String
+  subject       String
+  gradeLevel    String   // e.g., "Class 5", "Class 6-8"
+  tip           String   @db.Text
+  methodology   String?  // Teaching methodology this tip relates to
+  commonMistake String?  @db.Text
+  aiGenerated   Boolean  @default(false)
+  rating        Float?   // Average user rating
+  usageCount    Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([subject])
+  @@index([topic])
+  @@index([gradeLevel])
+}
+
+// ========================
+// TEACHER COMMUNITY
+// ========================
+
+enum CommunityPostType {
+  QUESTION
+  DISCUSSION
+  RESOURCE
+  TIP
+  ANNOUNCEMENT
+}
+
+model CommunityPost {
+  id         String            @id @default(cuid())
+  title      String
+  content    String            @db.Text
+  type       CommunityPostType @default(DISCUSSION)
+  subject    String?
+  tags       String[]
+  upvotes    Int               @default(0)
+  viewCount  Int               @default(0)
+  isPinned   Boolean           @default(false)
+  isResolved Boolean           @default(false) // For questions
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+
+  authorId String
+  author   User   @relation("CommunityPostAuthor", fields: [authorId], references: [id])
+
+  schoolId String? // If null, visible to all schools
+  school   School? @relation(fields: [schoolId], references: [id])
+
+  comments CommunityComment[]
+  voters   CommunityVote[]
+
+  @@index([authorId])
+  @@index([schoolId])
+  @@index([type])
+  @@index([subject])
+  @@index([createdAt])
+  @@index([upvotes])
+}
+
+model CommunityComment {
+  id        String   @id @default(cuid())
+  content   String   @db.Text
+  upvotes   Int      @default(0)
+  isAnswer  Boolean  @default(false) // Marked as accepted answer
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  authorId String
+  author   User   @relation("CommunityCommentAuthor", fields: [authorId], references: [id])
+
+  postId String
+  post   CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  parentId String?            // For nested replies
+  parent   CommunityComment?  @relation("CommentReplies", fields: [parentId], references: [id])
+  replies  CommunityComment[] @relation("CommentReplies")
+
+  voters CommunityVote[]
+
+  @@index([postId])
+  @@index([authorId])
+  @@index([parentId])
+}
+
+model CommunityVote {
+  id        String   @id @default(cuid())
+  value     Int      @default(1) // 1 for upvote, -1 for downvote
+  createdAt DateTime @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  postId String?
+  post   CommunityPost? @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  commentId String?
+  comment   CommunityComment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+  @@unique([userId, commentId])
+  @@index([postId])
+  @@index([commentId])
+}
+
+// ========================
+// TEACHER PERFORMANCE
+// ========================
+
+model TeacherPerformanceSnapshot {
+  id              String   @id @default(cuid())
+  period          String   // e.g., "2024-01", "2024-Q1"
+  metrics         Json     // {lessonsCreated, worksheetsCreated, homeworkAssigned, avgStudentScore, ...}
+  studentOutcomes Json?    // {avgProgress, topImprovers, needsAttention}
+  aiInsights      Json?    // AI-generated insights
+  recommendations String[] // AI-generated recommendations
+  createdAt       DateTime @default(now())
+
+  teacherId String
+  teacher   User   @relation(fields: [teacherId], references: [id])
+
+  @@unique([teacherId, period])
+  @@index([teacherId])
+  @@index([period])
+}
+
+// ========================
+// ELITE STUDENT FEATURES
+// ========================
+
+enum StudySessionType {
+  DOUBT_SOLVING
+  CONCEPT_LEARNING
+  PRACTICE
+  REVISION
+  COMPETITIVE_PREP
+}
+
+enum ExamType {
+  JEE_MAIN
+  JEE_ADVANCED
+  NEET
+  OLYMPIAD
+  NTSE
+  KVPY
+  SCHOOL_EXAM
+  CBSE_BOARD
+  ICSE_BOARD
+  STATE_BOARD
+}
+
+model StudySession {
+  id              String           @id @default(cuid())
+  type            StudySessionType @default(DOUBT_SOLVING)
+  subject         String
+  topic           String?
+  startedAt       DateTime         @default(now())
+  endedAt         DateTime?
+  duration        Int?             // Duration in minutes
+  messages        Json             // Array of {role, content, timestamp}
+  summary         Json?            // AI-generated session summary
+  conceptsCovered String[]
+  weakAreasFound  String[]
+  examType        ExamType?
+
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id])
+
+  @@index([studentId])
+  @@index([type])
+  @@index([subject])
+  @@index([startedAt])
+  @@index([examType])
+}
+
+model PersonalizedLearningPath {
+  id              String    @id @default(cuid())
+  subject         String
+  examType        ExamType?
+  currentLevel    Int       @default(1) // 1-10 scale
+  targetLevel     Int       @default(10)
+  targetDate      DateTime?
+  milestones      Json      // Array of {id, title, topics[], targetDate, completed}
+  weakAreas       String[]
+  strongAreas     String[]
+  recommendedTime Int       @default(60) // Daily recommended time in minutes
+  progress        Int       @default(0) // 0-100 percentage
+  aiAdjustedAt    DateTime? // Last AI adjustment
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id])
+
+  @@index([studentId])
+  @@index([subject])
+  @@index([examType])
+  @@index([isActive])
+}
+
+model PracticeQuestion {
+  id            String    @id @default(cuid())
+  question      String    @db.Text
+  options       Json?     // For MCQ: [{label: 'A', text: '...'}]
+  correctAnswer String    @db.Text
+  explanation   String?   @db.Text
+  difficulty    Difficulty
+  subject       String
+  topic         String
+  subtopic      String?
+  examType      ExamType?
+  year          Int?      // Year of exam if from past papers
+  source        String?   // e.g., "JEE Main 2023", "AI Generated"
+  tags          String[]
+  solveTimeAvg  Int?      // Average solve time in seconds
+  successRate   Float?    // Success rate (0-1)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  attempts PracticeAttempt[]
+
+  @@index([subject])
+  @@index([topic])
+  @@index([difficulty])
+  @@index([examType])
+}
+
+model PracticeAttempt {
+  id         String   @id @default(cuid())
+  answer     String   @db.Text
+  isCorrect  Boolean
+  timeTaken  Int      // Time taken in seconds
+  hintsUsed  Int      @default(0)
+  aiFeedback String?  @db.Text
+  createdAt  DateTime @default(now())
+
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id])
+
+  questionId String
+  question   PracticeQuestion @relation(fields: [questionId], references: [id])
+
+  @@index([studentId])
+  @@index([questionId])
+  @@index([isCorrect])
+  @@index([createdAt])
+}
+
+model StudyAnalytics {
+  id                  String   @id @default(cuid())
+  date                DateTime @db.Date
+  totalStudyTime      Int      @default(0) // Minutes
+  sessionsCount       Int      @default(0)
+  questionsAttempted  Int      @default(0)
+  questionsCorrect    Int      @default(0)
+  topicsStudied       String[]
+  peakStudyHour       Int?     // 0-23 hour
+  streakDays          Int      @default(0)
+  weeklyGoalMet       Boolean  @default(false)
+  weeklyGoalMinutes   Int      @default(300) // 5 hours default weekly goal
+
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id])
+
+  @@unique([studentId, date])
+  @@index([studentId])
+  @@index([date])
 }

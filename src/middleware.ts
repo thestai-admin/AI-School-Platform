@@ -3,6 +3,32 @@ import { NextResponse } from 'next/server'
 import { UserRole } from '@prisma/client'
 import { getSchoolSlugFromHost } from '@/lib/tenant'
 
+/**
+ * Feature-gated route patterns
+ * These routes require specific feature access (checked at API level)
+ *
+ * Feature gating is handled in API routes using:
+ * - withFeatureGate(feature) - HOC wrapper for route handlers
+ * - requireFeature(schoolId, feature) - Inline check helper
+ *
+ * See: src/lib/features/feature-gate.ts
+ */
+export const FEATURE_GATED_ROUTES: Record<string, string> = {
+  // Teacher Training routes
+  '/teacher/training': 'teacher_training_basic',
+  '/api/training': 'teacher_training_basic',
+
+  // Community routes
+  '/teacher/community': 'community_read',
+  '/api/community': 'community_read',
+
+  // Elite Student routes
+  '/student/companion': 'ai_study_companion_24x7',
+  '/student/competitive': 'competitive_exam_prep',
+  '/student/learning-path': 'personalized_learning_paths',
+  '/api/study': 'ai_study_companion_24x7',
+}
+
 // Security headers for all responses
 function addSecurityHeaders(response: NextResponse): NextResponse {
   // Prevent clickjacking
