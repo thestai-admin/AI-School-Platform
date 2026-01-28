@@ -129,6 +129,8 @@ async function main() {
         password: hashedPassword,
         name: adminName,
         role: 'ADMIN',
+        status: 'ACTIVE',
+        emailVerified: new Date(),
         languagePreference: 'ENGLISH',
         schoolId: school.id,
       },

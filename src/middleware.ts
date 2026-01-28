@@ -1,28 +1,17 @@
 import { withAuth } from 'next-auth/middleware'
 import { NextResponse } from 'next/server'
-import { UserRole } from '@prisma/client'
+import { UserRole, UserStatus } from '@prisma/client'
 import { getSchoolSlugFromHost } from '@/lib/tenant'
 
 /**
  * Feature-gated route patterns
  * These routes require specific feature access (checked at API level)
- *
- * Feature gating is handled in API routes using:
- * - withFeatureGate(feature) - HOC wrapper for route handlers
- * - requireFeature(schoolId, feature) - Inline check helper
- *
- * See: src/lib/features/feature-gate.ts
  */
 export const FEATURE_GATED_ROUTES: Record<string, string> = {
-  // Teacher Training routes
   '/teacher/training': 'teacher_training_basic',
   '/api/training': 'teacher_training_basic',
-
-  // Community routes
   '/teacher/community': 'community_read',
   '/api/community': 'community_read',
-
-  // Elite Student routes
   '/student/companion': 'ai_study_companion_24x7',
   '/student/competitive': 'competitive_exam_prep',
   '/student/learning-path': 'personalized_learning_paths',
@@ -31,20 +20,14 @@ export const FEATURE_GATED_ROUTES: Record<string, string> = {
 
 // Security headers for all responses
 function addSecurityHeaders(response: NextResponse): NextResponse {
-  // Prevent clickjacking
   response.headers.set('X-Frame-Options', 'DENY')
-  // Prevent MIME type sniffing
   response.headers.set('X-Content-Type-Options', 'nosniff')
-  // Enable XSS filter
   response.headers.set('X-XSS-Protection', '1; mode=block')
-  // Referrer policy
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
-  // Permissions policy
   response.headers.set(
     'Permissions-Policy',
     'camera=(), microphone=(), geolocation=(), interest-cohort=()'
   )
-  // Content Security Policy
   response.headers.set(
     'Content-Security-Policy',
     [
@@ -59,7 +42,6 @@ function addSecurityHeaders(response: NextResponse): NextResponse {
       "frame-src 'self' https://accounts.google.com",
     ].join('; ')
   )
-  // Strict Transport Security (HTTPS only)
   if (process.env.NODE_ENV === 'production') {
     response.headers.set(
       'Strict-Transport-Security',
@@ -80,19 +62,35 @@ export default withAuth(
 
     // Create response with school context header
     let response = NextResponse.next()
-
-    // Add security headers to all responses
     response = addSecurityHeaders(response)
 
     if (schoolSlug) {
-      // Set school slug header for downstream use
       response.headers.set('x-school-slug', schoolSlug)
-
-      // Verify user belongs to this school (if logged in)
-      // Note: Full verification happens in API routes with database lookup
     }
 
-    // Role-based route protection
+    // Check user status - block access for non-active users
+    const userStatus = token?.status as UserStatus | undefined
+
+    if (userStatus === UserStatus.PENDING_VERIFICATION) {
+      return NextResponse.redirect(new URL('/verify-email-required', req.url))
+    }
+
+    if (userStatus === UserStatus.PENDING_APPROVAL) {
+      // Allow teachers to see a pending approval page
+      if (path !== '/pending-approval' && !path.startsWith('/api/auth')) {
+        return NextResponse.redirect(new URL('/pending-approval', req.url))
+      }
+    }
+
+    if (userStatus === UserStatus.SUSPENDED) {
+      return NextResponse.redirect(new URL('/account-suspended', req.url))
+    }
+
+    if (userStatus === UserStatus.REJECTED) {
+      return NextResponse.redirect(new URL('/account-rejected', req.url))
+    }
+
+    // Role-based route protection (only for ACTIVE users)
     if (path.startsWith('/teacher') && token?.role !== UserRole.TEACHER && token?.role !== UserRole.ADMIN) {
       return NextResponse.redirect(new URL('/unauthorized', req.url))
     }
@@ -118,6 +116,16 @@ export default withAuth(
         if (req.nextUrl.pathname === '/api/health') {
           return true
         }
+        // Allow access to status pages
+        const publicPaths = [
+          '/pending-approval',
+          '/verify-email-required',
+          '/account-suspended',
+          '/account-rejected',
+        ]
+        if (publicPaths.some((p) => req.nextUrl.pathname.startsWith(p))) {
+          return true
+        }
         return !!token
       },
     },
@@ -131,6 +139,10 @@ export const config = {
     '/admin/:path*',
     '/parent/:path*',
     '/dashboard/:path*',
+    '/pending-approval',
+    '/verify-email-required',
+    '/account-suspended',
+    '/account-rejected',
     '/api/health',
   ],
 }

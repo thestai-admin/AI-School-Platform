@@ -14,6 +14,14 @@ enum UserRole {
   PARENT
 }
 
+enum UserStatus {
+  PENDING_VERIFICATION  // Email not verified
+  PENDING_APPROVAL      // Email verified, awaiting admin approval (teachers)
+  ACTIVE                // Fully active
+  SUSPENDED             // Temporarily disabled
+  REJECTED              // Admin rejected (teachers)
+}
+
 enum Language {
   ENGLISH
   HINDI
@@ -94,15 +102,30 @@ model School {
 }
 
 model User {
-  id                 String   @id @default(cuid())
-  email              String   @unique
-  password           String?  // Optional for OAuth users (Google, etc.)
+  id                 String     @id @default(cuid())
+  email              String     @unique
+  password           String?    // Optional for OAuth users (Google, etc.)
   name               String
   phone              String?
   role               UserRole
-  languagePreference Language @default(ENGLISH)
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  status             UserStatus @default(PENDING_VERIFICATION)
+  languagePreference Language   @default(ENGLISH)
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  // Email verification
+  emailVerified      DateTime?
+  emailVerifyToken   String?    @unique
+  emailVerifyExpires DateTime?
+
+  // Password reset
+  passwordResetToken   String?  @unique
+  passwordResetExpires DateTime?
+
+  // Admin approval (for teachers)
+  approvedAt         DateTime?
+  approvedBy         String?    // Admin user ID who approved
+  rejectionReason    String?
 
   schoolId String?
   school   School? @relation(fields: [schoolId], references: [id])

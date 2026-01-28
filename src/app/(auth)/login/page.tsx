@@ -32,41 +32,61 @@ function GoogleIcon({ className }: { className?: string }) {
   )
 }
 
-// Map OAuth error codes to user-friendly messages
-function getOAuthErrorMessage(error: string | null): string {
-  switch (error) {
-    case 'OAuthAccountNotLinked':
-      return 'This email is already registered with a different sign-in method. Please use your original sign-in method.'
-    case 'OAuthCallback':
-      return 'There was a problem signing in with Google. Please try again.'
-    case 'OAuthCreateAccount':
-      return 'Could not create your account. Please try again.'
-    case 'OAuthSignin':
-      return 'Could not start Google sign-in. Please try again.'
-    case 'Callback':
-      return 'Authentication callback failed. Please try again.'
-    case 'AccessDenied':
-      return 'Access denied. You may not have permission to sign in.'
-    default:
-      return error || ''
+// Map error/message codes to user-friendly messages
+function getMessageContent(code: string | null): { type: 'error' | 'success' | 'info'; message: string } | null {
+  if (!code) return null
+
+  const messages: Record<string, { type: 'error' | 'success' | 'info'; message: string }> = {
+    // Errors
+    OAuthAccountNotLinked: { type: 'error', message: 'This email is already registered with a different sign-in method.' },
+    OAuthCallback: { type: 'error', message: 'There was a problem signing in with Google. Please try again.' },
+    OAuthCreateAccount: { type: 'error', message: 'Could not create your account. Please try again.' },
+    OAuthSignin: { type: 'error', message: 'Could not start Google sign-in. Please try again.' },
+    Callback: { type: 'error', message: 'Authentication callback failed. Please try again.' },
+    AccessDenied: { type: 'error', message: 'Access denied. You may not have permission to sign in.' },
+    AccountSuspended: { type: 'error', message: 'Your account has been suspended. Please contact support.' },
+    AccountRejected: { type: 'error', message: 'Your registration was not approved. Please contact support.' },
+    InvalidToken: { type: 'error', message: 'Invalid or expired verification link.' },
+    TokenExpired: { type: 'error', message: 'Verification link has expired. Please request a new one.' },
+    VerificationFailed: { type: 'error', message: 'Email verification failed. Please try again.' },
+
+    // Success messages
+    registered: { type: 'success', message: 'Registration successful! Please check your email to verify your account.' },
+    EmailVerified: { type: 'success', message: 'Email verified successfully! You can now log in.' },
+    PasswordReset: { type: 'success', message: 'Password reset successful! You can now log in with your new password.' },
+    AlreadyVerified: { type: 'info', message: 'Your email is already verified. Please log in.' },
+
+    // Info messages
+    PendingApproval: { type: 'info', message: 'Your email is verified. Your account is pending administrator approval.' },
   }
+
+  return messages[code] || null
 }
 
 function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const callbackUrl = searchParams.get('callbackUrl') || '/'
-  const oauthError = searchParams.get('error')
+  const errorCode = searchParams.get('error')
+  const messageCode = searchParams.get('message')
+  const statusCode = searchParams.get('status')
+  const registered = searchParams.get('registered')
+
+  const initialMessage = getMessageContent(errorCode) || getMessageContent(messageCode) || getMessageContent(statusCode) || (registered ? getMessageContent('registered') : null)
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [error, setError] = useState(getOAuthErrorMessage(oauthError))
+  const [error, setError] = useState(initialMessage?.type === 'error' ? initialMessage.message : '')
+  const [success, setSuccess] = useState(initialMessage?.type === 'success' ? initialMessage.message : '')
+  const [info, setInfo] = useState(initialMessage?.type === 'info' ? initialMessage.message : '')
   const [isLoading, setIsLoading] = useState(false)
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
+    setSuccess('')
+    setInfo('')
     setIsLoading(true)
 
     try {
@@ -90,8 +110,8 @@ function LoginForm() {
   }
 
   async function handleGoogleSignIn() {
-    setError('')
     setIsGoogleLoading(true)
+    setError('')
     try {
       await signIn('google', { callbackUrl })
     } catch {
@@ -101,103 +121,112 @@ function LoginForm() {
   }
 
   return (
-    <Card variant="elevated" className="w-full max-w-md">
-      <CardHeader className="text-center">
-        <div className="mx-auto w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center mb-4">
-          <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-          </svg>
-        </div>
-        <CardTitle className="text-2xl">Welcome to AI School</CardTitle>
-        <p className="text-gray-500 mt-2">Sign in to continue</p>
-      </CardHeader>
-      <CardContent>
-        {error && (
-          <div className="p-3 mb-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
-            {error}
+    <div data-testid="page-login" className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4">
+      <Card variant="elevated" className="w-full max-w-md">
+        <CardHeader className="text-center">
+          <div className="mx-auto w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center mb-4">
+            <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+            </svg>
           </div>
-        )}
-
-        {/* Google Sign In Button */}
-        <Button
-          type="button"
-          variant="outline"
-          className="w-full flex items-center justify-center gap-3 h-11 border-gray-300 hover:bg-gray-50"
-          onClick={handleGoogleSignIn}
-          disabled={isGoogleLoading || isLoading}
-        >
-          {isGoogleLoading ? (
-            <div className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
-          ) : (
-            <GoogleIcon className="w-5 h-5" />
-          )}
-          <span className="text-gray-700 font-medium">Sign in with Google</span>
-        </Button>
-
-        {/* Divider */}
-        <div className="relative my-6">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-gray-200" />
-          </div>
-          <div className="relative flex justify-center text-sm">
-            <span className="bg-white px-4 text-gray-500">or continue with email</span>
-          </div>
-        </div>
-
-        {/* Email/Password Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <Input
-            label="Email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="Enter your email"
-            required
-          />
-
-          <Input
-            label="Password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Enter your password"
-            required
-          />
-
-          <Button type="submit" className="w-full" isLoading={isLoading} disabled={isGoogleLoading}>
-            Sign In
+          <CardTitle className="text-2xl">Welcome Back</CardTitle>
+          <p className="text-gray-500 mt-2">Sign in to AI School Platform</p>
+        </CardHeader>
+        <CardContent>
+          {/* Google Sign In */}
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full mb-4 flex items-center justify-center gap-2"
+            onClick={handleGoogleSignIn}
+            disabled={isGoogleLoading}
+          >
+            {isGoogleLoading ? (
+              <div className="w-5 h-5 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />
+            ) : (
+              <GoogleIcon className="w-5 h-5" />
+            )}
+            Continue with Google
           </Button>
-        </form>
 
-        <div className="mt-6 text-center text-sm text-gray-500">
-          Don&apos;t have an account?{' '}
-          <Link href="/register" className="text-blue-600 hover:underline font-medium">
-            Register here
-          </Link>
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
+          <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-200" />
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-white text-gray-500">or sign in with email</span>
+            </div>
+          </div>
 
-function LoadingFallback() {
-  return (
-    <Card variant="elevated" className="w-full max-w-md">
-      <CardContent className="p-8">
-        <div className="flex items-center justify-center">
-          <div className="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full" />
-        </div>
-      </CardContent>
-    </Card>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {error && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+                {error}
+              </div>
+            )}
+
+            {success && (
+              <div className="p-3 bg-green-50 border border-green-200 rounded-lg text-green-600 text-sm">
+                {success}
+              </div>
+            )}
+
+            {info && (
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-600 text-sm">
+                {info}
+              </div>
+            )}
+
+            <Input
+              label="Email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Enter your email"
+              required
+            />
+
+            <div>
+              <Input
+                label="Password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter your password"
+                required
+              />
+              <div className="mt-1 text-right">
+                <Link href="/forgot-password" className="text-sm text-blue-600 hover:underline">
+                  Forgot password?
+                </Link>
+              </div>
+            </div>
+
+            <Button type="submit" className="w-full" isLoading={isLoading}>
+              Sign In
+            </Button>
+          </form>
+
+          <div className="mt-6 text-center text-sm text-gray-500">
+            Don&apos;t have an account?{' '}
+            <Link href="/register" className="text-blue-600 hover:underline font-medium">
+              Create account
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   )
 }
 
 export default function LoginPage() {
   return (
-    <div data-testid="page-login" className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4">
-      <Suspense fallback={<LoadingFallback />}>
-        <LoginForm />
-      </Suspense>
-    </div>
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div className="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full"></div>
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
   )
 }

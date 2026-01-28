@@ -9,8 +9,8 @@ import { Select } from '@/components/ui/select'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 const roleOptions = [
-  { value: 'TEACHER', label: 'Teacher' },
   { value: 'STUDENT', label: 'Student' },
+  { value: 'TEACHER', label: 'Teacher' },
   { value: 'PARENT', label: 'Parent' },
 ]
 
@@ -34,6 +34,8 @@ export default function RegisterPage() {
   })
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [registrationComplete, setRegistrationComplete] = useState(false)
+  const [registeredEmail, setRegisteredEmail] = useState('')
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) {
     setFormData((prev) => ({
@@ -51,8 +53,26 @@ export default function RegisterPage() {
       return
     }
 
-    if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters')
+    if (formData.password.length < 8) {
+      setError('Password must be at least 8 characters')
+      return
+    }
+
+    // Check password strength
+    if (!/[a-z]/.test(formData.password)) {
+      setError('Password must contain at least one lowercase letter')
+      return
+    }
+    if (!/[A-Z]/.test(formData.password)) {
+      setError('Password must contain at least one uppercase letter')
+      return
+    }
+    if (!/\d/.test(formData.password)) {
+      setError('Password must contain at least one number')
+      return
+    }
+    if (!/[@$!%*?&#^()_+=\-]/.test(formData.password)) {
+      setError('Password must contain at least one special character (@$!%*?&#^()_+=-)')
       return
     }
 
@@ -78,12 +98,69 @@ export default function RegisterPage() {
         throw new Error(data.error || 'Registration failed')
       }
 
-      router.push('/login?registered=true')
+      // Show verification message
+      setRegisteredEmail(formData.email)
+      setRegistrationComplete(true)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An unexpected error occurred')
     } finally {
       setIsLoading(false)
     }
+  }
+
+  // Show success message after registration
+  if (registrationComplete) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-100 px-4 py-8">
+        <Card variant="elevated" className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
+              <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <CardTitle className="text-2xl text-green-700">Check Your Email!</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-gray-600 text-center">
+              We&apos;ve sent a verification link to:
+            </p>
+            <p className="text-center font-semibold text-gray-800">
+              {registeredEmail}
+            </p>
+
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <p className="text-sm text-green-800">
+                <strong>Next steps:</strong>
+              </p>
+              <ol className="mt-2 text-sm text-green-700 space-y-1 list-decimal list-inside">
+                <li>Check your email inbox (and spam folder)</li>
+                <li>Click the verification link</li>
+                <li>
+                  {formData.role === 'TEACHER'
+                    ? 'Wait for admin approval (teachers only)'
+                    : 'Start using the platform!'}
+                </li>
+              </ol>
+            </div>
+
+            {formData.role === 'TEACHER' && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <p className="text-sm text-blue-800">
+                  <strong>Note for Teachers:</strong> After verifying your email, your account will need to be approved by a school administrator. You&apos;ll receive an email once approved.
+                </p>
+              </div>
+            )}
+
+            <div className="text-center pt-4 border-t">
+              <Link href="/login" className="text-blue-600 hover:underline font-medium">
+                Go to Login
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   return (
@@ -142,6 +219,12 @@ export default function RegisterPage() {
               options={roleOptions}
             />
 
+            {formData.role === 'TEACHER' && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-700">
+                <strong>Note:</strong> Teacher accounts require administrator approval after email verification.
+              </div>
+            )}
+
             <Select
               label="Preferred Language"
               name="languagePreference"
@@ -169,6 +252,10 @@ export default function RegisterPage() {
               placeholder="Confirm your password"
               required
             />
+
+            <div className="text-xs text-gray-500">
+              Password must be at least 8 characters with uppercase, lowercase, number, and special character.
+            </div>
 
             <Button type="submit" className="w-full" isLoading={isLoading}>
               Create Account

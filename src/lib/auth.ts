@@ -3,7 +3,7 @@ import CredentialsProvider from 'next-auth/providers/credentials'
 import GoogleProvider from 'next-auth/providers/google'
 import bcrypt from 'bcryptjs'
 import { prisma } from './db/prisma'
-import { UserRole } from '@prisma/client'
+import { UserRole, UserStatus } from '@prisma/client'
 
 declare module 'next-auth' {
   interface Session {
@@ -12,6 +12,7 @@ declare module 'next-auth' {
       email: string
       name: string
       role: UserRole
+      status: UserStatus
       schoolId?: string
     }
   }
@@ -21,6 +22,7 @@ declare module 'next-auth' {
     email: string
     name: string
     role: UserRole
+    status: UserStatus
     schoolId?: string
   }
 }
@@ -29,6 +31,7 @@ declare module 'next-auth/jwt' {
   interface JWT {
     id: string
     role: UserRole
+    status: UserStatus
     schoolId?: string
   }
 }
@@ -36,8 +39,8 @@ declare module 'next-auth/jwt' {
 export const authOptions: NextAuthOptions = {
   providers: [
     GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      clientId: process.env.GOOGLE_CLIENT_ID || '',
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
       authorization: {
         params: {
           prompt: 'consent',
@@ -58,7 +61,7 @@ export const authOptions: NextAuthOptions = {
         }
 
         const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
+          where: { email: credentials.email.toLowerCase() },
         })
 
         if (!user) {
@@ -76,11 +79,29 @@ export const authOptions: NextAuthOptions = {
           throw new Error('Invalid password')
         }
 
+        // Check user status
+        if (user.status === 'PENDING_VERIFICATION') {
+          throw new Error('Please verify your email before logging in. Check your inbox for the verification link.')
+        }
+
+        if (user.status === 'PENDING_APPROVAL') {
+          throw new Error('Your account is pending administrator approval. You will receive an email once approved.')
+        }
+
+        if (user.status === 'SUSPENDED') {
+          throw new Error('Your account has been suspended. Please contact support.')
+        }
+
+        if (user.status === 'REJECTED') {
+          throw new Error('Your registration was not approved. Please contact support for more information.')
+        }
+
         return {
           id: user.id,
           email: user.email,
           name: user.name,
           role: user.role,
+          status: user.status,
           schoolId: user.schoolId ?? undefined,
         }
       },
@@ -95,11 +116,25 @@ export const authOptions: NextAuthOptions = {
 
         // Check if user already exists
         const existingUser = await prisma.user.findUnique({
-          where: { email },
+          where: { email: email.toLowerCase() },
           include: { accounts: true },
         })
 
         if (existingUser) {
+          // Check user status for existing users
+          if (existingUser.status === 'PENDING_VERIFICATION') {
+            return '/login?error=PendingVerification'
+          }
+
+          if (existingUser.status === 'SUSPENDED') {
+            return '/login?error=AccountSuspended'
+          }
+
+          if (existingUser.status === 'REJECTED') {
+            return '/login?error=AccountRejected'
+          }
+
+          // For pending approval (teachers), allow login but they'll see restricted access
           // Check if this Google account is already linked
           const existingAccount = existingUser.accounts.find(
             (acc) => acc.provider === 'google' && acc.providerAccountId === account.providerAccountId
@@ -127,14 +162,17 @@ export const authOptions: NextAuthOptions = {
           // Update the user object with DB values for jwt callback
           user.id = existingUser.id
           user.role = existingUser.role
+          user.status = existingUser.status
           user.schoolId = existingUser.schoolId ?? undefined
         } else {
-          // Create new user with STUDENT role
+          // Create new user with STUDENT role - Google OAuth users are auto-verified
           const newUser = await prisma.user.create({
             data: {
-              email,
+              email: email.toLowerCase(),
               name: user.name || email.split('@')[0],
               role: UserRole.STUDENT,
+              status: UserStatus.ACTIVE, // Google OAuth users are auto-verified
+              emailVerified: new Date(),
               accounts: {
                 create: {
                   type: account.type,
@@ -155,6 +193,7 @@ export const authOptions: NextAuthOptions = {
           // Update the user object with DB values for jwt callback
           user.id = newUser.id
           user.role = newUser.role
+          user.status = newUser.status
           user.schoolId = newUser.schoolId ?? undefined
         }
       }
@@ -165,6 +204,7 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.id = user.id
         token.role = user.role
+        token.status = user.status
         token.schoolId = user.schoolId
       }
 
@@ -173,11 +213,12 @@ export const authOptions: NextAuthOptions = {
       if (account?.provider === 'google' && !token.role) {
         const dbUser = await prisma.user.findUnique({
           where: { email: token.email! },
-          select: { id: true, role: true, schoolId: true },
+          select: { id: true, role: true, status: true, schoolId: true },
         })
         if (dbUser) {
           token.id = dbUser.id
           token.role = dbUser.role
+          token.status = dbUser.status
           token.schoolId = dbUser.schoolId ?? undefined
         }
       }
@@ -188,6 +229,7 @@ export const authOptions: NextAuthOptions = {
       if (token) {
         session.user.id = token.id
         session.user.role = token.role
+        session.user.status = token.status
         session.user.schoolId = token.schoolId
       }
       return session
@@ -199,7 +241,9 @@ export const authOptions: NextAuthOptions = {
   },
   session: {
     strategy: 'jwt',
+    maxAge: 30 * 24 * 60 * 60, // 30 days
   },
+  debug: process.env.NODE_ENV === 'development',
 }
 
 export async function hashPassword(password: string): Promise<string> {
@@ -208,4 +252,16 @@ export async function hashPassword(password: string): Promise<string> {
 
 export async function verifyPassword(password: string, hashedPassword: string): Promise<boolean> {
   return bcrypt.compare(password, hashedPassword)
+}
+
+// Generate secure random token
+export function generateToken(): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+  let token = ''
+  const randomValues = new Uint8Array(64)
+  crypto.getRandomValues(randomValues)
+  for (let i = 0; i < 64; i++) {
+    token += chars[randomValues[i] % chars.length]
+  }
+  return token
 }

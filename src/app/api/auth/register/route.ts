@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
-import { hashPassword } from '@/lib/auth'
-import { UserRole, Language } from '@prisma/client'
+import { hashPassword, generateToken } from '@/lib/auth'
+import { UserRole, UserStatus, Language } from '@prisma/client'
 import { rateLimiters, getClientIp, rateLimitResponse } from '@/lib/rate-limit'
+import { sendEmail, getBaseUrl } from '@/lib/email/email-service'
+import { emailVerificationTemplate } from '@/lib/email/templates'
 
 interface RegisterRequest {
   name: string
@@ -74,10 +76,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validate role
-    if (!Object.values(UserRole).includes(role)) {
+    // Validate role - ADMIN cannot self-register
+    const allowedRoles: UserRole[] = [UserRole.TEACHER, UserRole.STUDENT, UserRole.PARENT]
+    if (!allowedRoles.includes(role)) {
       return NextResponse.json(
-        { error: 'Invalid role' },
+        { error: 'Invalid role. Please select Teacher, Student, or Parent.' },
         { status: 400 }
       )
     }
@@ -91,29 +94,35 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const normalizedEmail = email.toLowerCase().trim()
+
     // Check if user already exists
-    // Note: Using generic error to prevent user enumeration
     const existingUser = await prisma.user.findUnique({
-      where: { email: email.toLowerCase() },
+      where: { email: normalizedEmail },
     })
 
     if (existingUser) {
-      // Return generic success to prevent user enumeration
-      // In production, you might want to send an email saying "account already exists"
       return NextResponse.json(
-        { error: 'User with this email already exists' },
+        { error: 'An account with this email already exists. Please login or use a different email.' },
         { status: 409 }
       )
     }
 
     // Verify school exists if provided
+    let school = null
     if (schoolId) {
-      const school = await prisma.school.findUnique({
+      school = await prisma.school.findUnique({
         where: { id: schoolId },
       })
       if (!school) {
         return NextResponse.json(
-          { error: 'Invalid school' },
+          { error: 'Invalid school selected' },
+          { status: 400 }
+        )
+      }
+      if (!school.isActive) {
+        return NextResponse.json(
+          { error: 'This school is not currently accepting registrations' },
           { status: 400 }
         )
       }
@@ -122,33 +131,69 @@ export async function POST(request: NextRequest) {
     // Hash password
     const hashedPassword = await hashPassword(password)
 
-    // Create user
+    // Generate email verification token
+    const verificationToken = generateToken()
+    const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
+
+    // Create user with PENDING_VERIFICATION status
     const user = await prisma.user.create({
       data: {
         name: sanitizedName,
-        email: email.toLowerCase(),
+        email: normalizedEmail,
         password: hashedPassword,
         role,
+        status: UserStatus.PENDING_VERIFICATION,
         languagePreference: languagePreference || Language.ENGLISH,
         phone: phone?.replace(/[^\d+\-\s()]/g, '').slice(0, 20),
         schoolId,
+        emailVerifyToken: verificationToken,
+        emailVerifyExpires: verificationExpires,
       },
       select: {
         id: true,
         name: true,
         email: true,
         role: true,
+        status: true,
       },
     })
 
+    // Send verification email
+    const baseUrl = getBaseUrl()
+    const verificationUrl = `${baseUrl}/api/auth/verify-email?token=${verificationToken}`
+
+    const emailResult = await sendEmail({
+      to: normalizedEmail,
+      subject: 'Verify your email - AI School Platform',
+      html: emailVerificationTemplate({
+        userName: sanitizedName,
+        verificationUrl,
+        expiresIn: '24 hours',
+      }),
+    })
+
+    if (!emailResult.success) {
+      console.error('Failed to send verification email:', emailResult.error)
+      // Don't fail registration, but log the error
+    }
+
     return NextResponse.json(
-      { message: 'User created successfully', user },
+      {
+        message: 'Registration successful! Please check your email to verify your account.',
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+        },
+        requiresVerification: true,
+      },
       { status: 201 }
     )
   } catch (error) {
     console.error('Registration error:', error)
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'An error occurred during registration. Please try again.' },
       { status: 500 }
     )
   }
