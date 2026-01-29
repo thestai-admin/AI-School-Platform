@@ -11,63 +11,77 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { POST } from '@/app/api/auth/register/route'
-import {
-  testDb,
-  emailServiceMock,
-  resetAllTestData,
-  setupTestSchool,
-  createRateLimitersMock,
-} from '../../utils/mocks'
 import { UserRole, UserStatus, Language } from '../../utils/test-utils'
 
-// Mock dependencies
-// Note: We can't use testDb directly here due to hoisting
-// The prisma mock is set up dynamically in beforeEach
-const mockPrisma = {
-  user: {
-    findUnique: vi.fn(),
-    create: vi.fn(),
-    update: vi.fn(),
-    findMany: vi.fn(),
-    count: vi.fn(),
-    groupBy: vi.fn(),
-  },
-  school: {
-    findUnique: vi.fn(),
-    findMany: vi.fn(),
-  },
-  $transaction: vi.fn(),
-}
+// Use vi.hoisted to define mocks that will be hoisted alongside vi.mock
+const { mockPrisma, mockRateLimitersMock, mockEmailService } = vi.hoisted(() => {
+  const sentEmails: Array<{ to: string; subject: string; html: string }> = []
+
+  return {
+    mockPrisma: {
+      user: {
+        findUnique: vi.fn(),
+        create: vi.fn(),
+        update: vi.fn(),
+        findMany: vi.fn(),
+        count: vi.fn(),
+        groupBy: vi.fn(),
+      },
+      school: {
+        findUnique: vi.fn(),
+        findMany: vi.fn(),
+      },
+      $transaction: vi.fn(),
+    },
+    mockRateLimitersMock: {
+      auth: { check: vi.fn().mockResolvedValue({ success: true, remaining: 10 }) },
+      ai: { check: vi.fn().mockResolvedValue({ success: true, remaining: 10 }) },
+      login: { check: vi.fn().mockResolvedValue({ success: true, remaining: 5 }) },
+    },
+    mockEmailService: {
+      sentEmails,
+      sendEmail: vi.fn((options: { to: string; subject: string; html: string }) => {
+        sentEmails.push(options)
+        return Promise.resolve({ success: true })
+      }),
+      getBaseUrl: vi.fn(() => 'http://localhost:3000'),
+      findEmailTo: (to: string) => sentEmails.filter((e) => e.to === to),
+      reset: () => { sentEmails.length = 0 },
+    },
+  }
+})
 
 vi.mock('@/lib/db/prisma', () => ({
   prisma: mockPrisma,
 }))
+
+// Import after mocks are set up
+import { POST } from '@/app/api/auth/register/route'
+import {
+  testDb,
+  resetAllTestData,
+  setupTestSchool,
+} from '../../utils/mocks'
 
 vi.mock('@/lib/auth', () => ({
   hashPassword: vi.fn((password: string) => Promise.resolve(`$2b$12$hashed_${password}`)),
   generateToken: vi.fn(() => `token-${Date.now()}`),
 }))
 
-vi.mock('@/lib/rate-limit', () => {
-  const mocks = createRateLimitersMock()
-  return {
-    rateLimiters: mocks,
-    getClientIp: vi.fn(() => '127.0.0.1'),
-    rateLimitResponse: vi.fn((resetTime: number) =>
-      new Response(JSON.stringify({ error: 'Too many requests' }), {
-        status: 429,
-        headers: { 'Content-Type': 'application/json' },
-      })
-    ),
-  }
-})
+vi.mock('@/lib/rate-limit', () => ({
+  rateLimiters: mockRateLimitersMock,
+  getClientIp: vi.fn(() => '127.0.0.1'),
+  rateLimitResponse: vi.fn(() =>
+    new Response(JSON.stringify({ error: 'Too many requests' }), {
+      status: 429,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  ),
+}))
 
 vi.mock('@/lib/email/email-service', () => ({
-  sendEmail: vi.fn((options: { to: string; subject: string; html: string }) =>
-    emailServiceMock.sendEmail(options)
-  ),
-  getBaseUrl: vi.fn(() => emailServiceMock.getBaseUrl()),
+  sendEmail: mockEmailService.sendEmail,
+  getBaseUrl: mockEmailService.getBaseUrl,
 }))
 
 vi.mock('@/lib/email/templates', () => ({
@@ -94,6 +108,7 @@ describe('Registration API - /api/auth/register', () => {
 
   beforeEach(() => {
     resetAllTestData()
+    mockEmailService.reset()
     testSchool = setupTestSchool('Test School', 'testschool')
     vi.clearAllMocks()
 
@@ -185,7 +200,7 @@ describe('Registration API - /api/auth/register', () => {
 
       await POST(request)
 
-      const sentEmails = emailServiceMock.findEmailTo('emailtest@test.com')
+      const sentEmails = mockEmailService.findEmailTo('emailtest@test.com')
       expect(sentEmails.length).toBe(1)
       expect(sentEmails[0].subject).toContain('Verify your email')
     })
