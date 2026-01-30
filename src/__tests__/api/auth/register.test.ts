@@ -34,9 +34,11 @@ const { mockPrisma, mockRateLimitersMock, mockEmailService } = vi.hoisted(() => 
       $transaction: vi.fn(),
     },
     mockRateLimitersMock: {
-      auth: { check: vi.fn().mockResolvedValue({ success: true, remaining: 10 }) },
-      ai: { check: vi.fn().mockResolvedValue({ success: true, remaining: 10 }) },
-      login: { check: vi.fn().mockResolvedValue({ success: true, remaining: 5 }) },
+      register: vi.fn(() => ({ success: true, remaining: 10, resetTime: Date.now() + 60000 })),
+      login: vi.fn(() => ({ success: true, remaining: 5, resetTime: Date.now() + 60000 })),
+      auth: vi.fn(() => ({ success: true, remaining: 10, resetTime: Date.now() + 60000 })),
+      ai: vi.fn(() => ({ success: true, remaining: 10, resetTime: Date.now() + 60000 })),
+      api: vi.fn(() => ({ success: true, remaining: 10, resetTime: Date.now() + 60000 })),
     },
     mockEmailService: {
       sentEmails,
