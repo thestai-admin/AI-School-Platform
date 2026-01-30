@@ -41,15 +41,22 @@ This is a Next.js 16 (App Router) education platform for Indian schools (Class 1
 ### Key Architectural Patterns
 
 **Role-Based Route Structure**: Each role has isolated routes with dedicated layouts:
-- `/teacher/*` - Lesson planning, worksheet generation
-- `/student/*` - AI chat, worksheets, progress tracking
-- `/admin/*` - School management
-- `/parent/*` - Child progress monitoring
+- `/teacher/*` - Lesson planning, worksheet generation, diagrams, homework, training
+- `/student/*` - AI chat, worksheets, progress tracking, diagrams, study companion
+- `/admin/*` - School management, analytics, diagrams
+- `/parent/*` - Child progress monitoring, homework tracking, diagrams
 
-**Authentication Flow**: NextAuth.js with JWT strategy and credentials provider. The middleware (`src/middleware.ts`) enforces role-based access on `/teacher/*`, `/student/*`, `/admin/*`, `/parent/*`, and `/dashboard/*` routes - users can only access routes matching their role (admins can access all routes). Session types are extended in `src/lib/auth.ts` to include `role` and `schoolId`. Password utilities (`hashPassword`, `verifyPassword`) are also exported from `src/lib/auth.ts`.
+**Authentication Flow**: NextAuth.js with JWT strategy supporting both credentials and Google OAuth. The middleware (`src/middleware.ts`) enforces role-based access and user status checks. Session types are extended in `src/lib/auth.ts` to include `role`, `status`, and `schoolId`. Password utilities (`hashPassword`, `verifyPassword`, `generateToken`) are also exported from `src/lib/auth.ts`.
+
+**User Status Workflow**: Users progress through statuses defined in `UserStatus` enum:
+- `PENDING_VERIFICATION` - Email not verified (redirects to `/verify-email-required`)
+- `PENDING_APPROVAL` - Email verified, awaiting admin approval for teachers (redirects to `/pending-approval`)
+- `ACTIVE` - Fully active user
+- `SUSPENDED` - Temporarily disabled (redirects to `/account-suspended`)
+- `REJECTED` - Admin rejected registration (redirects to `/account-rejected`)
 
 **AI Integration**: The platform supports multiple AI providers via a unified interface in `src/lib/ai/provider.ts`. Available providers (auto-detected in priority order):
-1. **Google AI (Gemini)** - Recommended for production (`GOOGLE_AI_API_KEY`) - uses gemini-2.0-flash
+1. **Google AI (Gemini)** - Recommended for production (`GOOGLE_AI_API_KEY`) - uses gemini-1.5-flash by default
 2. **Vertex AI (Gemma 2)** - Open source, for GCP deployment (`GCP_PROJECT_ID` + `VERTEX_AI_MODEL`)
 3. **Together.ai (Qwen)** - Good quality, affordable (`TOGETHER_API_KEY`)
 4. **Anthropic Claude** - Highest quality (`ANTHROPIC_API_KEY`)
@@ -68,9 +75,17 @@ Prompt templates are in `src/lib/prompts/` and support three languages: English,
 
 **Multi-Tenancy**: Schools are isolated by subdomain (e.g., `school1.domain.com`). The slug is extracted in middleware via `src/lib/tenant.ts` and all data is scoped by `schoolId`. Helper functions: `isValidSlug()`, `generateSlugFromName()`, `RESERVED_SLUGS` array for validating school slugs.
 
-**Rate Limiting**: API rate limits are configured in `src/lib/rate-limit.ts`. Key limits: AI endpoints (20 req/min), Auth (10 req/min), Login (5 attempts/15 min), Registration (3/hour).
+**Product Tiers & Feature Gating**: Schools have subscription tiers (`STARTER`, `AFFORDABLE`, `ELITE`, `ENTERPRISE`) defined in `src/lib/features/feature-gate.ts`. Features are gated by tier with inheritance (higher tiers include all lower-tier features). Key functions:
+- `checkFeatureAccess(schoolId, feature)` - Check if school can access a feature
+- `withFeatureGate(feature)` - HOF to wrap API routes with feature checks
+- `requireFeature(schoolId, feature)` - Helper for manual feature checks in routes
+- `trackFeatureUsage(schoolId, feature)` - Track usage for analytics
 
-**Security**: Middleware (`src/middleware.ts`) adds security headers (CSP, HSTS, X-Frame-Options, X-Content-Type-Options).
+Feature-gated routes are defined in `FEATURE_GATED_ROUTES` in middleware.
+
+**Rate Limiting**: Tier-based rate limits in `src/lib/rate-limit.ts`. Default limits: AI endpoints (20 req/min for AFFORDABLE, 50 for ELITE), Auth (10 req/min), Login (5 attempts/15 min). Use `tierRateLimiters` for tier-aware limiting.
+
+**Security**: Middleware (`src/middleware.ts`) adds security headers (CSP, HSTS, X-Frame-Options, X-Content-Type-Options, Permissions-Policy).
 
 **Database**: PostgreSQL with Prisma ORM using the `pg` adapter (required for Prisma 7+). The Prisma client is singleton-cached in `src/lib/db/prisma.ts` to prevent connection issues in development. Use `docker-compose up -d` to start a local PostgreSQL instance (port 5433).
 
@@ -89,6 +104,12 @@ All API routes are in `src/app/api/`:
 - `api/auth/*` - Authentication (NextAuth handlers, registration)
 - `api/lessons/*`, `api/worksheets/*` - CRUD for content
 - `api/homework/*` - Homework assignment and submissions with AI grading
+- `api/diagrams/*` - Visual diagram CRUD (React Flow)
+- `api/training/*` - Teacher training modules and certifications
+- `api/community/*` - Teacher community posts and comments
+- `api/study/*` - Elite student study companion and learning paths
+- `api/admin/*` - Admin endpoints (students, classes, analytics)
+- `api/student/progress/*` - Student progress tracking
 - `api/subjects/*`, `api/classes/*` - Subject and class listing
 - `api/health/` - Load balancer health check
 
@@ -96,14 +117,42 @@ All API routes check `getServerSession(authOptions)` for authentication.
 
 ### Data Model Relationships
 
-- Schools contain Users and Classes
-- Users have roles and can be: Teachers (assigned to classes via TeacherClass), Students (belong to one class, optionally linked to parent), Parents, or Admins
-- Lessons and Worksheets are created by teachers for specific classes and subjects
-- Homework is assigned by teachers; HomeworkSubmission stores student responses with AI grading (`src/lib/prompts/grading.ts`) and optional teacher review
-- ChatHistory tracks student AI conversations by subject
-- StudentProgress stores per-subject metrics for each student
+**Core Models:**
+- Schools contain Users, Classes, Diagrams, and have a SchoolSubscription (tier-based)
+- Users have roles (`UserRole`) and status (`UserStatus`), can be: Teachers, Students, Parents, or Admins
+- Teachers are assigned to classes+subjects via TeacherClass junction table
+- Students belong to one Class and optionally link to a Parent user
 
-Key enums from Prisma: `UserRole`, `Language` (ENGLISH/HINDI/MIXED), `Difficulty` (EASY/MEDIUM/HARD), `HomeworkStatus` (PENDING/SUBMITTED/GRADED/LATE)
+**Content Models:**
+- Lessons and Worksheets are created by teachers for specific classes and subjects
+- Homework is assigned by teachers; HomeworkSubmission stores student responses with AI grading (`src/lib/prompts/grading.ts`)
+- Diagrams (React Flow) can be PRIVATE, CLASS, or SCHOOL visibility; types: FLOWCHART, DECISION_TREE, CONCEPT_MAP, LESSON_FLOW
+
+**Student Learning (Elite Tier):**
+- StudySession tracks AI tutoring sessions with type (DOUBT_SOLVING, CONCEPT_LEARNING, PRACTICE, REVISION, COMPETITIVE_PREP)
+- PersonalizedLearningPath stores adaptive learning journeys with milestones
+- PracticeQuestion/PracticeAttempt for competitive exam prep (JEE, NEET, Olympiad, etc.)
+- StudyAnalytics tracks daily study metrics and streaks
+
+**Teacher Training:**
+- TrainingCategory → TrainingModule → TeacherTrainingProgress
+- TeacherCertification (BRONZE, SILVER, GOLD, PLATINUM levels)
+- TeachingTip for AI-generated subject-specific advice
+- TeacherPerformanceSnapshot for periodic metrics
+
+**Community:**
+- CommunityPost (types: QUESTION, DISCUSSION, RESOURCE, TIP, ANNOUNCEMENT)
+- CommunityComment with nested replies
+- CommunityVote for upvoting
+
+**BHASHINI Integration (Multi-language):**
+- ClassroomSession for live multi-language classes
+- SessionTranscript with TranscriptTranslation
+- PeerChat/PeerMessage for cross-language student chat
+- LanguageProgress for language learning gamification
+- Supports 12 Indian languages via `BhashiniLanguage` enum
+
+Key enums: `UserRole`, `UserStatus`, `Language`, `Difficulty`, `HomeworkStatus`, `DiagramType`, `DiagramVisibility`, `ProductTier`, `ExamType`
 
 ### CI/CD Pipeline
 
@@ -126,10 +175,20 @@ Custom components in `src/components/ui/` use Tailwind CSS with variant/size pro
 
 All client components are marked with `'use client'` directive.
 
+### Visual Diagrams (React Flow)
+
+Diagram components in `src/components/diagrams/`:
+- `DiagramEditor.tsx` - Full editing interface with toolbar and sidebar
+- `DiagramCanvas.tsx` - React Flow canvas wrapper
+- `DiagramViewer.tsx` - Read-only diagram display
+- `DiagramToolbar.tsx` - Add nodes, undo/redo, export
+- `DiagramSidebar.tsx` - Node properties panel
+- Custom nodes in `nodes/`: ProcessNode, DecisionNode, ConceptNode, StartEndNode
+
 ### State Management
 
 Zustand stores in `src/stores/`:
-- `diagramStore.ts` - React Flow diagram state (nodes, edges, viewport, selection)
+- `diagramStore.ts` - React Flow diagram state (nodes, edges, viewport, selection, history for undo/redo)
 
 Stores use the pattern: state + actions + getters in a single `create<State>()` call.
 
@@ -189,9 +248,13 @@ AI Provider (at least one required):
 
 Optional:
 - `AI_PROVIDER` - Force specific provider: `google-ai`, `vertex`, `qwen`, `claude`, `ollama`
-- `GOOGLE_AI_MODEL` - Google AI model (default: `gemini-2.0-flash`)
+- `GOOGLE_AI_MODEL` - Google AI model (default: `gemini-1.5-flash`)
 - `AI_TIMEOUT` - Request timeout in ms (default: 60000)
 - `AI_MAX_RETRIES` - Max retry attempts (default: 3)
 - `GCP_LOCATION` - GCP region (default: `asia-south1`)
 - `OLLAMA_BASE_URL` - Ollama URL for local AI (default: `http://localhost:11434`)
 - `OLLAMA_MODEL` - Ollama model name (default: `qwen3:8b`)
+
+Google OAuth (optional):
+- `GOOGLE_CLIENT_ID` - For Google Sign-In
+- `GOOGLE_CLIENT_SECRET` - For Google Sign-In

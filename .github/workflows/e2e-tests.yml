@@ -1,0 +1,248 @@
+name: E2E Tests
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+    inputs:
+      browser:
+        description: 'Browser to test'
+        required: false
+        default: 'chromium'
+        type: choice
+        options:
+          - chromium
+          - firefox
+          - webkit
+          - all
+
+env:
+  CI: true
+  CLEAN_TEST_DATA: true
+  PLAYWRIGHT_BASE_URL: http://localhost:3000
+
+jobs:
+  e2e-tests:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: ai_school_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ai_school_test
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/ai_school_test
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ai_school_test
+      NEXTAUTH_SECRET: test-secret-for-ci-only
+      NEXTAUTH_URL: http://localhost:3000
+      # Test user credentials
+      TEST_ADMIN_EMAIL: test-admin@e2e.test
+      TEST_ADMIN_PASSWORD: TestAdmin123!
+      TEST_TEACHER_EMAIL: test-teacher@e2e.test
+      TEST_TEACHER_PASSWORD: TestTeacher123!
+      TEST_STUDENT_EMAIL: test-student@e2e.test
+      TEST_STUDENT_PASSWORD: TestStudent123!
+      TEST_PARENT_EMAIL: test-parent@e2e.test
+      TEST_PARENT_PASSWORD: TestParent123!
+      TEST_PENDING_TEACHER_EMAIL: test-pending-teacher@e2e.test
+      TEST_PENDING_TEACHER_PASSWORD: TestPendingTeacher123!
+      TEST_SCHOOL_SLUG: e2e-test-school
+      TEST_SCHOOL_NAME: E2E Test School
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: ai-school-platform/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ai-school-platform
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: ai-school-platform
+        run: npx playwright install --with-deps chromium firefox webkit
+
+      - name: Generate Prisma client
+        working-directory: ai-school-platform
+        run: npx prisma generate
+
+      - name: Run database migrations
+        working-directory: ai-school-platform
+        run: npx prisma migrate deploy
+
+      - name: Seed database with subjects
+        working-directory: ai-school-platform
+        run: npx prisma db seed
+        continue-on-error: true
+
+      - name: Build application
+        working-directory: ai-school-platform
+        run: npm run build
+
+      - name: Run E2E tests (Chromium)
+        if: ${{ github.event.inputs.browser == 'chromium' || github.event.inputs.browser == 'all' || github.event.inputs.browser == '' }}
+        working-directory: ai-school-platform
+        run: npm run e2e -- --project=chromium
+
+      - name: Run E2E tests (Firefox)
+        if: ${{ github.event.inputs.browser == 'firefox' || github.event.inputs.browser == 'all' }}
+        working-directory: ai-school-platform
+        run: npm run e2e -- --project=firefox
+
+      - name: Run E2E tests (WebKit)
+        if: ${{ github.event.inputs.browser == 'webkit' || github.event.inputs.browser == 'all' }}
+        working-directory: ai-school-platform
+        run: npm run e2e -- --project=webkit
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: ai-school-platform/playwright-report/
+          retention-days: 30
+
+      - name: Upload test artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-artifacts
+          path: |
+            ai-school-platform/playwright-results/
+            ai-school-platform/e2e/.auth/
+          retention-days: 7
+
+  e2e-tests-sharded:
+    name: E2E Tests (Sharded)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1/4, 2/4, 3/4, 4/4]
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: ai_school_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ai_school_test
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/ai_school_test
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ai_school_test
+      NEXTAUTH_SECRET: test-secret-for-ci-only
+      NEXTAUTH_URL: http://localhost:3000
+      TEST_ADMIN_EMAIL: test-admin@e2e.test
+      TEST_ADMIN_PASSWORD: TestAdmin123!
+      TEST_TEACHER_EMAIL: test-teacher@e2e.test
+      TEST_TEACHER_PASSWORD: TestTeacher123!
+      TEST_STUDENT_EMAIL: test-student@e2e.test
+      TEST_STUDENT_PASSWORD: TestStudent123!
+      TEST_PARENT_EMAIL: test-parent@e2e.test
+      TEST_PARENT_PASSWORD: TestParent123!
+      TEST_PENDING_TEACHER_EMAIL: test-pending-teacher@e2e.test
+      TEST_PENDING_TEACHER_PASSWORD: TestPendingTeacher123!
+      TEST_SCHOOL_SLUG: e2e-test-school
+      TEST_SCHOOL_NAME: E2E Test School
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: ai-school-platform/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ai-school-platform
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: ai-school-platform
+        run: npx playwright install --with-deps chromium
+
+      - name: Generate Prisma client
+        working-directory: ai-school-platform
+        run: npx prisma generate
+
+      - name: Run database migrations
+        working-directory: ai-school-platform
+        run: npx prisma migrate deploy
+
+      - name: Seed database with subjects
+        working-directory: ai-school-platform
+        run: npx prisma db seed
+        continue-on-error: true
+
+      - name: Build application
+        working-directory: ai-school-platform
+        run: npm run build
+
+      - name: Run E2E tests (Shard ${{ matrix.shard }})
+        working-directory: ai-school-platform
+        run: npm run e2e -- --project=chromium --shard=${{ matrix.shard }}
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ strategy.job-index }}
+          path: ai-school-platform/playwright-report/
+          retention-days: 30
+
+  merge-reports:
+    name: Merge Test Reports
+    needs: e2e-tests-sharded
+    runs-on: ubuntu-latest
+    if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Download all reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: playwright-report-*
+          path: all-reports
+          merge-multiple: true
+
+      - name: Upload merged report
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-merged
+          path: all-reports/
+          retention-days: 30
