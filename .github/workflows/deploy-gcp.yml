@@ -164,12 +164,10 @@ jobs:
             GCP_PROJECT_ID=${{ env.PROJECT_ID }}
             GCP_LOCATION=${{ env.REGION }}
             NEXTAUTH_URL=https://thestai.com
-            BHASHINI_USE_MOCK=false
           secrets: |
             DATABASE_URL=DATABASE_URL:latest
             NEXTAUTH_SECRET=NEXTAUTH_SECRET:latest
             GOOGLE_AI_API_KEY=GOOGLE_AI_API_KEY:latest
-            BHASHINI_API_KEY=BHASHINI_API_KEY:latest
             GOOGLE_CLIENT_ID=GOOGLE_CLIENT_ID:latest
             GOOGLE_CLIENT_SECRET=GOOGLE_CLIENT_SECRET:latest
             RESEND_API_KEY=RESEND_API_KEY:latest

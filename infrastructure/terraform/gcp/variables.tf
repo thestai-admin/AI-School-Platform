@@ -107,9 +107,3 @@ variable "nextauth_secret" {
   sensitive   = true
 }
 
-variable "bhashini_api_key" {
-  description = "BHASHINI API key for Indian language support"
-  type        = string
-  default     = ""
-  sensitive   = true
-}

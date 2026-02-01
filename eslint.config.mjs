@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // E2E tests use Playwright which has a 'use' function that conflicts with React hooks rules
+    "e2e/**",
   ]),
 ]);
 

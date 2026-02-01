@@ -32,4 +32,3 @@ vertex_ai_model = "gemma-2-27b-it" # Open source (Apache 2.0)
 
 # Secrets (optional - leave empty to auto-generate)
 # nextauth_secret  = "your-32-character-secret"
-# bhashini_api_key = "your-bhashini-api-key"

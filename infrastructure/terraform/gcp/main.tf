@@ -199,22 +199,6 @@ resource "google_secret_manager_secret_version" "db_password" {
   secret_data = random_password.db_password.result
 }
 
-# Secret Manager - BHASHINI_API_KEY
-resource "google_secret_manager_secret" "bhashini_api_key" {
-  secret_id = "BHASHINI_API_KEY"
-
-  replication {
-    auto {}
-  }
-
-  depends_on = [google_project_service.apis]
-}
-
-resource "google_secret_manager_secret_version" "bhashini_api_key" {
-  secret      = google_secret_manager_secret.bhashini_api_key.id
-  secret_data = var.bhashini_api_key != "" ? var.bhashini_api_key : "placeholder"
-}
-
 # Cloud Run Service
 resource "google_cloud_run_v2_service" "main" {
   name     = var.service_name
@@ -294,11 +278,6 @@ resource "google_cloud_run_v2_service" "main" {
       }
 
       env {
-        name  = "BHASHINI_USE_MOCK"
-        value = var.bhashini_api_key != "" ? "false" : "true"
-      }
-
-      env {
         name = "NEXTAUTH_SECRET"
         value_source {
           secret_key_ref {
@@ -317,16 +296,6 @@ resource "google_cloud_run_v2_service" "main" {
           }
         }
       }
-
-      env {
-        name = "BHASHINI_API_KEY"
-        value_source {
-          secret_key_ref {
-            secret  = google_secret_manager_secret.bhashini_api_key.secret_id
-            version = "latest"
-          }
-        }
-      }
     }
 
     service_account = google_service_account.cloud_run.email
@@ -341,7 +310,6 @@ resource "google_cloud_run_v2_service" "main" {
     google_project_service.apis,
     google_secret_manager_secret_version.nextauth_secret,
     google_secret_manager_secret_version.db_password,
-    google_secret_manager_secret_version.bhashini_api_key,
   ]
 }
 
@@ -360,12 +328,6 @@ resource "google_secret_manager_secret_iam_member" "nextauth_secret_access" {
 
 resource "google_secret_manager_secret_iam_member" "db_password_access" {
   secret_id = google_secret_manager_secret.db_password.id
-  role      = "roles/secretmanager.secretAccessor"
-  member    = "serviceAccount:${google_service_account.cloud_run.email}"
-}
-
-resource "google_secret_manager_secret_iam_member" "bhashini_api_key_access" {
-  secret_id = google_secret_manager_secret.bhashini_api_key.id
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${google_service_account.cloud_run.email}"
 }

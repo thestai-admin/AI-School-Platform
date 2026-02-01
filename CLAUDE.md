@@ -11,11 +11,21 @@ npm run build        # Production build
 npm start            # Start production server
 npm run lint         # Run ESLint
 
-# Testing
+# Unit Testing (Vitest)
 npm test             # Run tests in watch mode
 npm run test:run     # Run tests once (CI mode)
 npm run test:coverage  # Run with coverage report
 npx vitest run src/lib/ai/__tests__/claude.test.ts  # Run single test file
+
+# E2E Testing (Playwright)
+npm run e2e               # Run all E2E tests
+npm run e2e:headed        # Run with browser visible
+npm run e2e:ui            # Open Playwright UI mode
+npm run e2e:chromium      # Run Chromium only
+npm run e2e:report        # View HTML report
+
+# Type Checking
+npx tsc --noEmit          # Type check without emitting
 
 # Database
 docker-compose up -d     # Start local PostgreSQL (port 5433)
@@ -95,7 +105,13 @@ Feature-gated routes are defined in `FEATURE_GATED_ROUTES` in middleware.
 
 ### Testing
 
-Test files are co-located with source code in `__tests__/` directories (e.g., `src/lib/ai/__tests__/`). Uses Vitest with React Testing Library. Mock external dependencies in tests.
+**Unit Tests (Vitest):** Test files are co-located with source code in `__tests__/` directories (e.g., `src/lib/ai/__tests__/`). Uses Vitest with React Testing Library and jsdom environment.
+
+**E2E Tests (Playwright):** Located in `e2e/tests/`. Tests run against dev server with global setup/teardown in `e2e/global-setup.ts`. Uses `.env.test` for test configuration.
+
+**Test Utilities:** `src/__tests__/utils/` contains:
+- `test-utils.ts` - Fixtures (`TEST_SCHOOL`, `TEST_USERS`), mock creators (`createMockSession`, `createMockRequest`)
+- `mocks.ts` - `InMemoryDatabase`, `testDb`, `emailServiceMock`, `aiProviderMock`, `rateLimitMocks`
 
 ### API Route Patterns
 
