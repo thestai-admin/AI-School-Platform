@@ -24,7 +24,8 @@ export class RegisterPage extends BasePage {
   readonly errorAlert: Locator;
   readonly successAlert: Locator;
 
-  // Role selection
+  // Role selection - actual UI uses Select dropdown
+  readonly roleSelect: Locator;
   readonly studentRoleButton: Locator;
   readonly teacherRoleButton: Locator;
   readonly roleSelector: Locator;
@@ -32,27 +33,38 @@ export class RegisterPage extends BasePage {
   // Student-specific
   readonly classSelect: Locator;
 
+  // Success state
+  readonly successScreen: Locator;
+  readonly successTitle: Locator;
+
   constructor(page: Page) {
     super(page);
 
     // Common form fields
-    this.nameInput = page.getByLabel(/name|full name/i);
-    this.emailInput = page.getByLabel(/email/i);
+    this.nameInput = page.getByLabel(/full name/i).or(page.locator('input[name="name"]'));
+    this.emailInput = page.getByLabel(/^email$/i).or(page.locator('input[name="email"]'));
     this.passwordInput = page.getByLabel(/^password$/i).or(page.locator('input[name="password"]'));
     this.confirmPasswordInput = page.getByLabel(/confirm password/i).or(page.locator('input[name="confirmPassword"]'));
-    this.phoneInput = page.getByLabel(/phone|mobile/i);
-    this.submitButton = page.getByRole('button', { name: /register|sign up|create account/i });
-    this.loginLink = page.getByRole('link', { name: /login|sign in|already have an account/i });
-    this.errorAlert = page.locator('[role="alert"]');
-    this.successAlert = page.locator('[role="status"], .text-green-500, .success-message');
+    this.phoneInput = page.getByLabel(/phone/i).or(page.locator('input[name="phone"]'));
+    this.submitButton = page.getByRole('button', { name: /create account/i });
+    this.loginLink = page.getByRole('link', { name: /sign in/i });
+    // Error alert is a div with specific styling in actual UI
+    this.errorAlert = page.locator('.bg-red-50.border-red-200, [role="alert"]');
+    this.successAlert = page.locator('.text-green-700, .bg-green-50');
 
-    // Role selection
+    // Role selection - actual UI uses Select dropdown with "I am a..." label
+    this.roleSelect = page.locator('select[name="role"]');
+    // Keep these for backwards compatibility but they won't work
     this.studentRoleButton = page.getByRole('button', { name: /student/i }).or(page.locator('[data-role="student"]'));
     this.teacherRoleButton = page.getByRole('button', { name: /teacher/i }).or(page.locator('[data-role="teacher"]'));
-    this.roleSelector = page.getByLabel(/role|i am a/i);
+    this.roleSelector = page.getByLabel(/i am a/i).or(page.locator('select[name="role"]'));
 
     // Student-specific
     this.classSelect = page.getByLabel(/class|grade/i);
+
+    // Success state - shown after successful registration
+    this.successScreen = page.locator('.text-green-700').filter({ hasText: 'Check Your Email' });
+    this.successTitle = page.getByText('Check Your Email!');
   }
 
   get path(): string {
@@ -61,11 +73,9 @@ export class RegisterPage extends BasePage {
 
   // Actions
   async selectRole(role: RegistrationRole): Promise<void> {
-    if (role === 'student') {
-      await this.studentRoleButton.click();
-    } else {
-      await this.teacherRoleButton.click();
-    }
+    // Actual UI uses Select dropdown, not buttons
+    const roleValue = role === 'student' ? 'STUDENT' : 'TEACHER';
+    await this.roleSelect.selectOption(roleValue);
   }
 
   async fillRegistrationForm(data: RegistrationData): Promise<void> {
@@ -124,22 +134,20 @@ export class RegisterPage extends BasePage {
   }
 
   async expectRegistrationSuccess(): Promise<void> {
-    // After successful registration, should redirect to verify email or show success
-    await this.page.waitForURL(url => {
-      const path = url.pathname;
-      return path.includes('/verify-email-required') ||
-             path.includes('/pending-approval') ||
-             path.includes('/login') ||
-             path.includes('/registration-success');
-    }, { timeout: 10000 });
+    // After successful registration, shows success screen with "Check Your Email!"
+    // The page stays on /register but shows success UI
+    await expect(this.successTitle).toBeVisible({ timeout: 10000 });
   }
 
   async expectTeacherPendingApproval(): Promise<void> {
-    await this.page.waitForURL(/\/pending-approval|\/verify-email/);
+    // Teachers see the success screen with note about admin approval
+    await expect(this.successTitle).toBeVisible({ timeout: 10000 });
+    await expect(this.page.getByText(/admin.*approval|administrator.*approval/i)).toBeVisible();
   }
 
   async expectStudentVerifyEmail(): Promise<void> {
-    await this.page.waitForURL(/\/verify-email-required/);
+    // Students see the success screen asking to check email
+    await expect(this.successTitle).toBeVisible({ timeout: 10000 });
   }
 
   async expectDuplicateEmailError(): Promise<void> {

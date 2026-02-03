@@ -37,27 +37,22 @@ export class AdminTeachersPage extends BasePage {
   constructor(page: Page) {
     super(page);
 
-    // Navigation and filters
+    // Navigation and filters - actual UI uses clickable cards for filtering
     this.searchInput = page.getByPlaceholder(/search.*teacher|find.*teacher/i).or(
       page.locator('input[name="search"]')
     );
     this.statusFilter = page.getByLabel(/status/i).or(page.locator('select[name="status"]'));
-    this.pendingTab = page.getByRole('tab', { name: /pending/i }).or(
-      page.getByRole('button', { name: /pending/i })
-    );
-    this.activeTab = page.getByRole('tab', { name: /active/i }).or(
-      page.getByRole('button', { name: /active/i })
-    );
-    this.allTab = page.getByRole('tab', { name: /all/i }).or(
-      page.getByRole('button', { name: /all/i })
-    );
+    // Cards act as tabs in actual UI
+    this.pendingTab = page.locator('.cursor-pointer').filter({ hasText: 'Pending' });
+    this.activeTab = page.locator('.cursor-pointer').filter({ hasText: 'Active' });
+    this.allTab = page.locator('.cursor-pointer').filter({ hasText: 'Total' });
     this.refreshButton = page.getByRole('button', { name: /refresh/i });
 
-    // Teacher list
-    this.teacherList = page.locator('[data-testid="teacher-list"], .teacher-list, table tbody');
-    this.teacherRow = page.locator('[data-testid="teacher-row"], .teacher-row, table tbody tr');
-    this.emptyState = page.locator('[data-testid="empty-state"], .empty-state');
-    this.loadingState = page.locator('[data-testid="loading"], .loading');
+    // Teacher list - actual UI uses divs with border rounded-lg
+    this.teacherList = page.locator('.space-y-4').first();
+    this.teacherRow = page.locator('.border.rounded-lg.p-4');
+    this.emptyState = page.getByText(/no teachers found/i);
+    this.loadingState = page.locator('.animate-spin');
 
     // Teacher actions (these will be scoped to specific rows)
     this.approveButton = page.getByRole('button', { name: /approve/i });

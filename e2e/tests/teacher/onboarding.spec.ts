@@ -26,22 +26,12 @@ test.describe('Teacher Onboarding Flow', () => {
         phone: '9876543212',
       });
 
-      // Step 2: Should be redirected to pending approval or verify email
-      await page.waitForURL(url => {
-        const path = url.pathname;
-        return path.includes('/pending-approval') ||
-               path.includes('/verify-email-required') ||
-               path.includes('/login');
-      }, { timeout: 15000 });
+      // Step 2: Should see success screen with "Check Your Email!" message
+      // The actual UI shows a success screen instead of redirecting
+      await expect(page.getByText('Check Your Email!')).toBeVisible({ timeout: 15000 });
 
-      const currentPath = new URL(page.url()).pathname;
-
-      // Verify the appropriate page is shown
-      expect(
-        currentPath.includes('/pending-approval') ||
-        currentPath.includes('/verify-email-required') ||
-        currentPath.includes('/login')
-      ).toBeTruthy();
+      // Should see note about admin approval for teachers
+      await expect(page.getByText(/admin.*approval|administrator.*approval/i)).toBeVisible();
     });
 
     test('pending teacher should see approval message when logging in', async ({ page }) => {

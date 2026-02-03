@@ -30,15 +30,11 @@ test.describe('Registration Page', () => {
     });
 
     test('should display role selection options', async () => {
-      // Check if role selection is visible
-      const studentButton = registerPage.studentRoleButton;
-      const teacherButton = registerPage.teacherRoleButton;
+      // Check if role selection is visible - actual UI uses Select dropdown
+      const roleSelectVisible = await registerPage.roleSelect.isVisible().catch(() => false);
 
-      const studentVisible = await studentButton.isVisible().catch(() => false);
-      const teacherVisible = await teacherButton.isVisible().catch(() => false);
-
-      // At least one role selection method should be available
-      expect(studentVisible || teacherVisible).toBeTruthy();
+      // Role selection should be available
+      expect(roleSelectVisible).toBeTruthy();
     });
   });
 

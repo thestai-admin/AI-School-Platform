@@ -26,22 +26,9 @@ test.describe('Student Onboarding Flow', () => {
         phone: '9876543213',
       });
 
-      // Step 2: Should be redirected to verify email or login
-      await page.waitForURL(url => {
-        const path = url.pathname;
-        return path.includes('/verify-email-required') ||
-               path.includes('/login') ||
-               path.includes('/student');
-      }, { timeout: 15000 });
-
-      const currentPath = new URL(page.url()).pathname;
-
-      // Verify registration completed (redirected somewhere appropriate)
-      expect(
-        currentPath.includes('/verify-email-required') ||
-        currentPath.includes('/login') ||
-        currentPath.includes('/student')
-      ).toBeTruthy();
+      // Step 2: Should see success screen with "Check Your Email!" message
+      // The actual UI shows a success screen instead of redirecting
+      await expect(page.getByText('Check Your Email!')).toBeVisible({ timeout: 15000 });
     });
 
     test('verified student should access dashboard after login', async ({ page }) => {
