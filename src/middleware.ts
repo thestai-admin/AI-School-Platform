@@ -60,9 +60,19 @@ export default withAuth(
     const host = req.headers.get('host') || ''
     const schoolSlug = getSchoolSlugFromHost(host)
 
+    // Trust Cloudflare headers for real client IP
+    // cf-connecting-ip is set by Cloudflare and contains the original client IP
+    const cfConnectingIP = req.headers.get('cf-connecting-ip')
+    const realIP = cfConnectingIP || req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+
     // Create response with school context header
     let response = NextResponse.next()
     response = addSecurityHeaders(response)
+
+    // Pass real IP to downstream for rate limiting and logging
+    if (realIP) {
+      response.headers.set('x-real-ip', realIP)
+    }
 
     if (schoolSlug) {
       response.headers.set('x-school-slug', schoolSlug)

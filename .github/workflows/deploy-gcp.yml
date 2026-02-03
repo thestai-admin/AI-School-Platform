@@ -70,7 +70,7 @@ jobs:
       - name: Run linter
         run: npm run lint
 
-      - name: Run tests
+      - name: Run unit tests
         env:
           DATABASE_URL: postgresql://test:test@localhost:5432/ai_school_test
           DIRECT_URL: postgresql://test:test@localhost:5432/ai_school_test
@@ -78,11 +78,96 @@ jobs:
           NEXTAUTH_URL: http://localhost:3000
         run: npm run test:run
 
+  # Run E2E tests with Playwright
+  e2e-test:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    needs: test
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: ai_school_test
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Run database migrations
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5433/ai_school_test
+          DIRECT_URL: postgresql://postgres:postgres@localhost:5433/ai_school_test
+        run: npx prisma migrate deploy
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run E2E tests
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5433/ai_school_test
+          DIRECT_URL: postgresql://postgres:postgres@localhost:5433/ai_school_test
+          TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5433/ai_school_test
+          NEXTAUTH_SECRET: test-secret-for-ci-minimum-32-chars-here
+          NEXTAUTH_URL: http://localhost:3000
+          PLAYWRIGHT_BASE_URL: http://localhost:3000
+          TEST_ADMIN_EMAIL: test-admin@e2e.test
+          TEST_ADMIN_PASSWORD: TestAdmin123!
+          TEST_TEACHER_EMAIL: test-teacher@e2e.test
+          TEST_TEACHER_PASSWORD: TestTeacher123!
+          TEST_STUDENT_EMAIL: test-student@e2e.test
+          TEST_STUDENT_PASSWORD: TestStudent123!
+          TEST_PARENT_EMAIL: test-parent@e2e.test
+          TEST_PARENT_PASSWORD: TestParent123!
+          TEST_PENDING_TEACHER_EMAIL: test-pending-teacher@e2e.test
+          TEST_PENDING_TEACHER_PASSWORD: TestPendingTeacher123!
+          TEST_SCHOOL_SLUG: e2e-test-school
+          TEST_SCHOOL_NAME: E2E Test School
+          CI: true
+        run: npm run e2e:chromium
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-results
+          path: playwright-results/
+          retention-days: 7
+
   # Build and push to Artifact Registry
   build:
     name: Build and Push to Artifact Registry
     runs-on: ubuntu-latest
-    needs: test
+    needs: [test, e2e-test]
     if: github.ref == 'refs/heads/main'
 
     permissions:
@@ -194,6 +279,29 @@ jobs:
             echo "::warning::Service is receiving ${TRAFFIC_PERCENT}% traffic"
           fi
 
+      - name: Purge Cloudflare Cache
+        if: success() && env.CLOUDFLARE_ZONE_ID != ''
+        env:
+          CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          if [ -n "$CLOUDFLARE_ZONE_ID" ] && [ -n "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "Purging Cloudflare cache..."
+            RESPONSE=$(curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/purge_cache" \
+              -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+              -H "Content-Type: application/json" \
+              --data '{"purge_everything":true}')
+
+            SUCCESS=$(echo "$RESPONSE" | grep -o '"success":true' || true)
+            if [ -n "$SUCCESS" ]; then
+              echo "✅ Cloudflare cache purged successfully"
+            else
+              echo "::warning::Cloudflare cache purge may have failed: $RESPONSE"
+            fi
+          else
+            echo "Skipping Cloudflare cache purge (secrets not configured)"
+          fi
+
   # Run database migrations
   migrate:
     name: Run Migrations
@@ -252,7 +360,7 @@ jobs:
   notify:
     name: Send Email Notification
     runs-on: ubuntu-latest
-    needs: [test, build, deploy, migrate]
+    needs: [test, e2e-test, build, deploy, migrate]
     if: always()
 
     steps:
@@ -277,13 +385,14 @@ jobs:
             🌐 Site: https://thestai.com
 
             All stages completed:
-            - ✅ Tests passed
+            - ✅ Unit tests passed
+            - ✅ E2E tests passed
             - ✅ Docker image built and pushed
             - ✅ Deployed to Cloud Run
             - ✅ Database migrations applied
 
       - name: Send failure email
-        if: ${{ needs.migrate.result == 'failure' || needs.deploy.result == 'failure' || needs.build.result == 'failure' || needs.test.result == 'failure' }}
+        if: ${{ needs.migrate.result == 'failure' || needs.deploy.result == 'failure' || needs.build.result == 'failure' || needs.test.result == 'failure' || needs.e2e-test.result == 'failure' }}
         uses: dawidd6/action-send-mail@v3
         with:
           server_address: ${{ secrets.SMTP_SERVER }}
@@ -302,7 +411,8 @@ jobs:
             🔗 Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
             Stage results:
-            - Test: ${{ needs.test.result }}
+            - Unit Tests: ${{ needs.test.result }}
+            - E2E Tests: ${{ needs.e2e-test.result }}
             - Build: ${{ needs.build.result }}
             - Deploy: ${{ needs.deploy.result }}
             - Migrate: ${{ needs.migrate.result }}

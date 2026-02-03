@@ -40,13 +40,13 @@ export default defineConfig({
     baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3000',
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
-    trace: 'on-first-retry',
+    trace: process.env.CI ? 'off' : 'on-first-retry',
 
     /* Take screenshot on failure */
     screenshot: 'only-on-failure',
 
-    /* Video recording */
-    video: 'on-first-retry',
+    /* Video recording - disabled in CI for speed */
+    video: process.env.CI ? 'off' : 'on-first-retry',
 
     /* Set default action timeout */
     actionTimeout: 10 * 1000,
