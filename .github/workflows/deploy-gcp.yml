@@ -115,11 +115,11 @@ jobs:
       - name: Generate Prisma client
         run: npx prisma generate
 
-      - name: Run database migrations
+      - name: Setup test database schema
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5433/ai_school_test
           DIRECT_URL: postgresql://postgres:postgres@localhost:5433/ai_school_test
-        run: npx prisma migrate deploy
+        run: npx prisma db push --accept-data-loss
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
