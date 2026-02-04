@@ -279,6 +279,29 @@ jobs:
             echo "::warning::Service is receiving ${TRAFFIC_PERCENT}% traffic"
           fi
 
+      - name: Purge Cloudflare Cache
+        if: success() && env.CLOUDFLARE_ZONE_ID != ''
+        env:
+          CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          if [ -n "$CLOUDFLARE_ZONE_ID" ] && [ -n "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "Purging Cloudflare cache..."
+            RESPONSE=$(curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/purge_cache" \
+              -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+              -H "Content-Type: application/json" \
+              --data '{"purge_everything":true}')
+
+            SUCCESS=$(echo "$RESPONSE" | grep -o '"success":true' || true)
+            if [ -n "$SUCCESS" ]; then
+              echo "✅ Cloudflare cache purged successfully"
+            else
+              echo "::warning::Cloudflare cache purge may have failed: $RESPONSE"
+            fi
+          else
+            echo "Skipping Cloudflare cache purge (secrets not configured)"
+          fi
+
   # Run database migrations
   migrate:
     name: Run Migrations
