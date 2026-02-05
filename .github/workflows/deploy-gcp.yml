@@ -266,9 +266,13 @@ jobs:
           ./cloud-sql-proxy $INSTANCE_CONNECTION_NAME &
           sleep 5
 
+          export DATABASE_URL="postgresql://ai_pathshala_user:${DB_PASSWORD}@localhost:5432/ai_pathshala"
+
+          # Resolve any previously failed migrations before deploying
+          npx prisma migrate resolve --applied "20260203000000_add_school_slug_isactive" 2>/dev/null || true
+
           # Run migrations (Cloud SQL Proxy exposes cloud DB on localhost)
-          DATABASE_URL="postgresql://ai_pathshala_user:${DB_PASSWORD}@localhost:5432/ai_pathshala" \
-            npx prisma migrate deploy
+          npx prisma migrate deploy
 
           echo "Migrations completed successfully!"
 
