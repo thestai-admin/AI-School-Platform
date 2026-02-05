@@ -6,7 +6,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 # Server
-npm run dev          # Start development server (http://localhost:3000)
 npm run build        # Production build
 npm start            # Start production server
 npm run lint         # Run ESLint
@@ -17,28 +16,23 @@ npm run test:run     # Run tests once (CI mode)
 npm run test:coverage  # Run with coverage report
 npx vitest run src/lib/ai/__tests__/claude.test.ts  # Run single test file
 
-# E2E Testing (Playwright)
-npm run e2e               # Run all E2E tests
+# E2E Testing (Playwright) - Runs against deployed cloud environment
+PLAYWRIGHT_BASE_URL=https://test.thestai.com npm run e2e  # Run all E2E tests
 npm run e2e:headed        # Run with browser visible
-npm run e2e:ui            # Open Playwright UI mode
 npm run e2e:chromium      # Run Chromium only
 npm run e2e:report        # View HTML report
 
 # Type Checking
 npx tsc --noEmit          # Type check without emitting
 
-# Database
-docker-compose up -d     # Start local PostgreSQL (port 5433)
-docker-compose down      # Stop PostgreSQL
+# Database (Cloud SQL)
 npx prisma generate      # Regenerate Prisma client after schema changes
-npx prisma migrate dev   # Run database migrations
-npx prisma studio        # Open Prisma database GUI
+npx prisma migrate deploy  # Run migrations on cloud database
 npx prisma db seed       # Seed database with default subjects
 
 # School Management
 npx tsx scripts/create-school.ts  # Create a new school with admin user (interactive)
 # Or with env vars: SCHOOL_NAME="My School" SCHOOL_SLUG="myschool" ADMIN_EMAIL="admin@example.com" npx tsx scripts/create-school.ts
-npx tsx scripts/seed-dav-school.ts  # Seed DAV school data
 
 # GCP Setup
 ./scripts/setup-github-gcp-auth.sh  # Setup GitHub Actions auth with GCP
@@ -70,7 +64,6 @@ This is a Next.js 16 (App Router) education platform for Indian schools (Class 1
 2. **Vertex AI (Gemma 2)** - Open source, for GCP deployment (`GCP_PROJECT_ID` + `VERTEX_AI_MODEL`)
 3. **Together.ai (Qwen)** - Good quality, affordable (`TOGETHER_API_KEY`)
 4. **Anthropic Claude** - Highest quality (`ANTHROPIC_API_KEY`)
-5. **Ollama** - Local development, no API key needed
 
 Two main functions available from any provider:
 - `generateWithAI()` - Single-turn generation (lessons, worksheets)
@@ -97,7 +90,7 @@ Feature-gated routes are defined in `FEATURE_GATED_ROUTES` in middleware.
 
 **Security**: Middleware (`src/middleware.ts`) adds security headers (CSP, HSTS, X-Frame-Options, X-Content-Type-Options, Permissions-Policy).
 
-**Database**: PostgreSQL with Prisma ORM using the `pg` adapter (required for Prisma 7+). The Prisma client is singleton-cached in `src/lib/db/prisma.ts` to prevent connection issues in development. Use `docker-compose up -d` to start a local PostgreSQL instance (port 5433).
+**Database**: PostgreSQL with Prisma ORM using the `pg` adapter (required for Prisma 7+). The Prisma client is singleton-cached in `src/lib/db/prisma.ts` to prevent connection issues. Uses Cloud SQL for all environments with connection via Unix socket in Cloud Run.
 
 **Docker**: Multi-stage Dockerfile uses standalone Next.js build for minimal production image (~150MB). The build requires placeholder DATABASE_URL at build time for Prisma client generation. Uses Cloud SQL Proxy for database connections in Cloud Run.
 
@@ -107,7 +100,7 @@ Feature-gated routes are defined in `FEATURE_GATED_ROUTES` in middleware.
 
 **Unit Tests (Vitest):** Test files are co-located with source code in `__tests__/` directories (e.g., `src/lib/ai/__tests__/`). Uses Vitest with React Testing Library and jsdom environment.
 
-**E2E Tests (Playwright):** Located in `e2e/tests/`. Tests run against dev server with global setup/teardown in `e2e/global-setup.ts`. Uses `.env.test` for test configuration.
+**E2E Tests (Playwright):** Located in `e2e/tests/`. Tests run against deployed cloud environment specified by `PLAYWRIGHT_BASE_URL` environment variable. Global setup/teardown in `e2e/global-setup.ts` seeds test data and authenticates test users. Configure test credentials in `.env.test`.
 
 **Test Utilities:** `src/__tests__/utils/` contains:
 - `test-utils.ts` - Fixtures (`TEST_SCHOOL`, `TEST_USERS`), mock creators (`createMockSession`, `createMockRequest`)
@@ -250,30 +243,30 @@ terraform init && terraform apply
 ## Environment Variables
 
 Required in `.env`:
-- `DATABASE_URL` - PostgreSQL connection string
-- `DIRECT_URL` - Direct PostgreSQL connection (same as DATABASE_URL for local dev)
+- `DATABASE_URL` - Cloud SQL PostgreSQL connection string
+- `DIRECT_URL` - Direct PostgreSQL connection (same as DATABASE_URL)
 - `NEXTAUTH_SECRET` - JWT signing secret
-- `NEXTAUTH_URL` - App URL (http://localhost:3000 for dev)
+- `NEXTAUTH_URL` - App URL (e.g., https://thestai.com)
 
 AI Provider (at least one required):
 - `GOOGLE_AI_API_KEY` - For Google AI/Gemini (recommended, get key from https://aistudio.google.com/apikey)
 - `GCP_PROJECT_ID` + `VERTEX_AI_MODEL` - For Vertex AI/Gemma 2 (GCP)
 - `TOGETHER_API_KEY` - For Together.ai/Qwen
 - `ANTHROPIC_API_KEY` - For Claude
-- None needed for Ollama (local development)
 
 Optional:
-- `AI_PROVIDER` - Force specific provider: `google-ai`, `vertex`, `qwen`, `claude`, `ollama`
+- `AI_PROVIDER` - Force specific provider: `google-ai`, `vertex`, `qwen`, `claude`
 - `GOOGLE_AI_MODEL` - Google AI model (default: `gemini-1.5-flash`)
 - `AI_TIMEOUT` - Request timeout in ms (default: 60000)
 - `AI_MAX_RETRIES` - Max retry attempts (default: 3)
 - `GCP_LOCATION` - GCP region (default: `asia-south1`)
-- `OLLAMA_BASE_URL` - Ollama URL for local AI (default: `http://localhost:11434`)
-- `OLLAMA_MODEL` - Ollama model name (default: `qwen3:8b`)
 
 Google OAuth (optional):
 - `GOOGLE_CLIENT_ID` - For Google Sign-In
 - `GOOGLE_CLIENT_SECRET` - For Google Sign-In
+
+E2E Testing:
+- `PLAYWRIGHT_BASE_URL` - Deployed environment URL for E2E tests (e.g., https://test.thestai.com)
 
 ## Workflow Orchestration Guidelines
 

@@ -88,7 +88,7 @@ AI-powered education platform for Indian schools (Class 1-10), designed to work 
 
 ## AI Provider Options
 
-The platform supports multiple AI providers (auto-detected in priority order):
+The platform supports multiple cloud AI providers (auto-detected in priority order):
 
 | Provider | Setup | Best For |
 |----------|-------|----------|
@@ -96,7 +96,6 @@ The platform supports multiple AI providers (auto-detected in priority order):
 | **Vertex AI (Gemma 2)** | Set `GCP_PROJECT_ID` | GCP-native deployment |
 | **Together.ai (Qwen)** | Set `TOGETHER_API_KEY` | Affordable cloud AI |
 | **Anthropic Claude** | Set `ANTHROPIC_API_KEY` | Highest quality |
-| **Ollama** | Install locally | Free local development |
 
 ```env
 # Recommended: Google AI (get key from https://aistudio.google.com/apikey)
@@ -155,17 +154,16 @@ ai-school-platform/
 │   │   ├── ui/                # Base UI components
 │   │   └── layout/            # Layout components
 │   ├── lib/
-│   │   ├── ai/                # AI providers (google-ai, vertex, claude, qwen, ollama)
+│   │   ├── ai/                # AI providers (google-ai, vertex, claude, qwen)
 │   │   ├── db/                # Prisma client
 │   │   └── prompts/           # AI prompt templates
 │   └── hooks/                 # React hooks
 ├── prisma/
 │   ├── schema.prisma          # Database schema
 │   └── seed.ts                # Seed data
-├── scripts/
-│   ├── create-school.ts       # School setup script
-│   └── deploy-gcp.sh          # GCP deployment script
-└── docker-compose.yml         # Local PostgreSQL
+└── scripts/
+    ├── create-school.ts       # School setup script
+    └── deploy-gcp.sh          # GCP deployment script
 ```
 
 ---
@@ -190,10 +188,9 @@ npm run build            # Production build
 npm start                # Start production server
 npm run lint             # Run linter
 
-# Database
-docker-compose up -d     # Start PostgreSQL
+# Database (Cloud SQL)
 npx prisma studio        # Database GUI
-npx prisma migrate dev   # Run migrations
+npx prisma migrate deploy # Run migrations
 npx prisma db seed       # Seed data
 
 # Deployment
@@ -209,12 +206,11 @@ npx prisma db seed       # Seed data
 - `NEXTAUTH_SECRET` - Auth secret (32+ chars)
 - `NEXTAUTH_URL` - App URL
 
-**AI (at least one):**
+**AI (at least one required):**
 - `GOOGLE_AI_API_KEY` - For Google AI/Gemini (recommended)
 - `GCP_PROJECT_ID` + `VERTEX_AI_MODEL` - For Vertex AI
 - `TOGETHER_API_KEY` - For Together.ai
 - `ANTHROPIC_API_KEY` - For Claude
-- (none) - For Ollama (local)
 
 See [.env.example](./.env.example) for full list.
 

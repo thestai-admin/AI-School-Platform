@@ -26,22 +26,23 @@ export class StudentChatPage extends BasePage {
   constructor(page: Page) {
     super(page);
 
-    // Chat interface
-    this.messageInput = page.getByPlaceholder(/type.*message|ask.*question|enter.*message/i).or(
-      page.locator('textarea[name="message"], input[name="message"]')
+    // Chat interface - actual UI uses specific classes
+    this.messageInput = page.getByPlaceholder(/type your question here/i).or(
+      page.locator('input[type="text"]').filter({ hasText: '' })
     );
-    this.sendButton = page.getByRole('button', { name: /send|submit/i }).or(
-      page.locator('button[type="submit"]')
-    );
-    this.chatMessages = page.locator('[data-testid="chat-messages"], .chat-messages, .messages-container');
-    this.userMessages = page.locator('[data-testid="user-message"], .user-message, [data-role="user"]');
-    this.aiMessages = page.locator('[data-testid="ai-message"], .ai-message, [data-role="assistant"]');
-    this.loadingIndicator = page.locator('[data-testid="loading"], .loading, .thinking, [aria-label="loading"]');
+    this.sendButton = page.locator('button[type="submit"]');
+    this.chatMessages = page.locator('.space-y-4').first();
+    // User messages are in blue bubbles (bg-blue-600), AI messages in gray (bg-gray-100)
+    this.userMessages = page.locator('.bg-blue-600.text-white.rounded-2xl');
+    this.aiMessages = page.locator('.bg-gray-100.text-gray-800.rounded-2xl');
+    // Loading indicator shows bouncing dots
+    this.loadingIndicator = page.locator('.animate-bounce').first();
 
-    // Subject/Topic selection
-    this.subjectSelect = page.getByLabel(/subject/i).or(page.locator('select[name="subject"]'));
+    // Subject/Topic selection - actual UI uses Select component without label
+    this.subjectSelect = page.locator('select').first();
     this.topicInput = page.getByLabel(/topic/i).or(page.locator('input[name="topic"]'));
-    this.newChatButton = page.getByRole('button', { name: /new chat|start new|clear/i });
+    // Clear button is used instead of "new chat"
+    this.newChatButton = page.getByRole('button', { name: /clear/i });
 
     // Chat history
     this.chatHistoryList = page.locator('[data-testid="chat-history"], .chat-history');

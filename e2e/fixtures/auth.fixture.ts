@@ -90,7 +90,10 @@ export async function setupAuthentication(
     fs.mkdirSync(AUTH_DIR, { recursive: true });
   }
 
-  const baseURL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3000';
+  const baseURL = process.env.PLAYWRIGHT_BASE_URL;
+  if (!baseURL) {
+    throw new Error('PLAYWRIGHT_BASE_URL environment variable is required');
+  }
 
   for (const [userType, storagePath] of Object.entries(storageStatePaths)) {
     console.log(`Setting up authentication for ${userType}...`);

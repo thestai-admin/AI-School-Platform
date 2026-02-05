@@ -1,5 +1,6 @@
 # CI/CD Pipeline for AI School Platform - GCP Cloud Run
 # Builds Docker image, pushes to Artifact Registry, and deploys to Cloud Run
+# Note: E2E tests run separately via e2e-tests.yml workflow against deployed cloud environments
 
 name: Deploy to GCP
 
@@ -25,9 +26,9 @@ env:
   REPO_NAME: ai-school-platform
 
 jobs:
-  # Run tests and linting
+  # Run unit tests and linting
   test:
-    name: Test
+    name: Unit Tests
     runs-on: ubuntu-latest
 
     services:
@@ -75,99 +76,14 @@ jobs:
           DATABASE_URL: postgresql://test:test@localhost:5432/ai_school_test
           DIRECT_URL: postgresql://test:test@localhost:5432/ai_school_test
           NEXTAUTH_SECRET: test-secret-for-ci-minimum-32-chars
-          NEXTAUTH_URL: http://localhost:3000
+          NEXTAUTH_URL: https://test.thestai.com
         run: npm run test:run
-
-  # Run E2E tests with Playwright
-  e2e-test:
-    name: E2E Tests
-    runs-on: ubuntu-latest
-    needs: test
-
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: ai_school_test
-        ports:
-          - 5433:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Generate Prisma client
-        run: npx prisma generate
-
-      - name: Setup test database schema
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5433/ai_school_test
-          DIRECT_URL: postgresql://postgres:postgres@localhost:5433/ai_school_test
-        run: npx prisma db push --accept-data-loss
-
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
-
-      - name: Run E2E tests
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5433/ai_school_test
-          DIRECT_URL: postgresql://postgres:postgres@localhost:5433/ai_school_test
-          TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5433/ai_school_test
-          NEXTAUTH_SECRET: test-secret-for-ci-minimum-32-chars-here
-          NEXTAUTH_URL: http://localhost:3000
-          PLAYWRIGHT_BASE_URL: http://localhost:3000
-          TEST_ADMIN_EMAIL: test-admin@e2e.test
-          TEST_ADMIN_PASSWORD: TestAdmin123!
-          TEST_TEACHER_EMAIL: test-teacher@e2e.test
-          TEST_TEACHER_PASSWORD: TestTeacher123!
-          TEST_STUDENT_EMAIL: test-student@e2e.test
-          TEST_STUDENT_PASSWORD: TestStudent123!
-          TEST_PARENT_EMAIL: test-parent@e2e.test
-          TEST_PARENT_PASSWORD: TestParent123!
-          TEST_PENDING_TEACHER_EMAIL: test-pending-teacher@e2e.test
-          TEST_PENDING_TEACHER_PASSWORD: TestPendingTeacher123!
-          TEST_SCHOOL_SLUG: e2e-test-school
-          TEST_SCHOOL_NAME: E2E Test School
-          CI: true
-        run: npm run e2e:chromium
-
-      - name: Upload Playwright report
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: playwright-report
-          path: playwright-report/
-          retention-days: 7
-
-      - name: Upload test results
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: playwright-results
-          path: playwright-results/
-          retention-days: 7
 
   # Build and push to Artifact Registry
   build:
     name: Build and Push to Artifact Registry
     runs-on: ubuntu-latest
-    needs: [test, e2e-test]
+    needs: test
     if: github.ref == 'refs/heads/main'
 
     permissions:
@@ -350,7 +266,7 @@ jobs:
           ./cloud-sql-proxy $INSTANCE_CONNECTION_NAME &
           sleep 5
 
-          # Run migrations
+          # Run migrations (Cloud SQL Proxy exposes cloud DB on localhost)
           DATABASE_URL="postgresql://ai_pathshala_user:${DB_PASSWORD}@localhost:5432/ai_pathshala" \
             npx prisma migrate deploy
 
@@ -360,7 +276,7 @@ jobs:
   notify:
     name: Send Email Notification
     runs-on: ubuntu-latest
-    needs: [test, e2e-test, build, deploy, migrate]
+    needs: [test, build, deploy, migrate]
     if: always()
 
     steps:
@@ -386,13 +302,14 @@ jobs:
 
             All stages completed:
             - ✅ Unit tests passed
-            - ✅ E2E tests passed
             - ✅ Docker image built and pushed
             - ✅ Deployed to Cloud Run
             - ✅ Database migrations applied
 
+            Note: E2E tests run separately against the deployed environment.
+
       - name: Send failure email
-        if: ${{ needs.migrate.result == 'failure' || needs.deploy.result == 'failure' || needs.build.result == 'failure' || needs.test.result == 'failure' || needs.e2e-test.result == 'failure' }}
+        if: ${{ needs.migrate.result == 'failure' || needs.deploy.result == 'failure' || needs.build.result == 'failure' || needs.test.result == 'failure' }}
         uses: dawidd6/action-send-mail@v3
         with:
           server_address: ${{ secrets.SMTP_SERVER }}
@@ -412,7 +329,6 @@ jobs:
 
             Stage results:
             - Unit Tests: ${{ needs.test.result }}
-            - E2E Tests: ${{ needs.e2e-test.result }}
             - Build: ${{ needs.build.result }}
             - Deploy: ${{ needs.deploy.result }}
             - Migrate: ${{ needs.migrate.result }}

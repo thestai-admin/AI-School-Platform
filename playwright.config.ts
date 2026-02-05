@@ -10,6 +10,8 @@ dotenv.config({ path: path.resolve(__dirname, '.env.test') });
 
 /**
  * Playwright E2E Test Configuration for AI School Platform
+ *
+ * Tests run against a deployed cloud environment specified by PLAYWRIGHT_BASE_URL.
  * See https://playwright.dev/docs/test-configuration
  */
 export default defineConfig({
@@ -37,7 +39,8 @@ export default defineConfig({
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3000',
+    /* Must be set via PLAYWRIGHT_BASE_URL environment variable pointing to cloud deployment */
+    baseURL: process.env.PLAYWRIGHT_BASE_URL,
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: process.env.CI ? 'off' : 'on-first-retry',
@@ -97,15 +100,7 @@ export default defineConfig({
     },
   ],
 
-  /* Run your local dev server before starting the tests */
-  webServer: {
-    command: 'npm run dev',
-    url: 'http://localhost:3000',
-    reuseExistingServer: !process.env.CI,
-    timeout: 120 * 1000,
-    stdout: 'ignore',
-    stderr: 'pipe',
-  },
+  /* No local webServer - tests run against deployed cloud environment */
 
   /* Global setup and teardown */
   globalSetup: require.resolve('./e2e/global-setup.ts'),

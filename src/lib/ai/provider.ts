@@ -7,7 +7,6 @@
  * 2. Vertex AI (GCP) - if GCP_PROJECT_ID and VERTEX_AI_MODEL are set
  * 3. Together.ai (Qwen) - if TOGETHER_API_KEY is set
  * 4. Anthropic Claude - if ANTHROPIC_API_KEY is set
- * 5. Ollama - fallback for local development
  */
 
 export type MessageRole = 'user' | 'assistant'
@@ -24,12 +23,12 @@ export interface GenerateOptions {
 }
 
 // Determine which provider to use
-function getProvider(): 'google-ai' | 'vertex' | 'qwen' | 'claude' | 'ollama' {
+function getProvider(): 'google-ai' | 'vertex' | 'qwen' | 'claude' {
   // Force a specific provider via environment variable
   const forcedProvider = process.env.AI_PROVIDER
   if (forcedProvider) {
-    if (['google-ai', 'vertex', 'qwen', 'claude', 'ollama'].includes(forcedProvider)) {
-      return forcedProvider as 'google-ai' | 'vertex' | 'qwen' | 'claude' | 'ollama'
+    if (['google-ai', 'vertex', 'qwen', 'claude'].includes(forcedProvider)) {
+      return forcedProvider as 'google-ai' | 'vertex' | 'qwen' | 'claude'
     }
     console.warn(`Unknown AI_PROVIDER "${forcedProvider}", falling back to auto-detection`)
   }
@@ -47,7 +46,14 @@ function getProvider(): 'google-ai' | 'vertex' | 'qwen' | 'claude' | 'ollama' {
   if (process.env.ANTHROPIC_API_KEY) {
     return 'claude'
   }
-  return 'ollama'
+
+  throw new Error(
+    'No AI provider configured. Please set one of the following environment variables:\n' +
+    '- GOOGLE_AI_API_KEY (recommended, get from https://aistudio.google.com/apikey)\n' +
+    '- GCP_PROJECT_ID + VERTEX_AI_MODEL (for Vertex AI)\n' +
+    '- TOGETHER_API_KEY (for Together.ai/Qwen)\n' +
+    '- ANTHROPIC_API_KEY (for Claude)'
+  )
 }
 
 // Lazy-load providers to avoid importing unused dependencies
@@ -71,11 +77,6 @@ async function getClaudeFunctions() {
   return { generate: generateWithClaude, chat: chatWithClaude }
 }
 
-async function getOllamaFunctions() {
-  const { generateWithOllama, chatWithOllama } = await import('./ollama')
-  return { generate: generateWithOllama, chat: chatWithOllama }
-}
-
 async function getProviderFunctions() {
   const provider = getProvider()
 
@@ -92,10 +93,6 @@ async function getProviderFunctions() {
     case 'claude':
       console.log('[AI] Using Anthropic Claude')
       return getClaudeFunctions()
-    case 'ollama':
-    default:
-      console.log('[AI] Using Ollama (local)')
-      return getOllamaFunctions()
   }
 }
 
@@ -155,8 +152,6 @@ function getModelForProvider(provider: string): string {
       return process.env.QWEN_MODEL || 'Qwen/Qwen2.5-72B-Instruct'
     case 'claude':
       return process.env.AI_MODEL || 'claude-sonnet-4-20250514'
-    case 'ollama':
-      return process.env.OLLAMA_MODEL || 'qwen3:8b'
     default:
       return 'unknown'
   }
@@ -172,8 +167,6 @@ function isProviderConfigured(provider: string): boolean {
       return !!process.env.TOGETHER_API_KEY
     case 'claude':
       return !!process.env.ANTHROPIC_API_KEY
-    case 'ollama':
-      return true // Always available locally
     default:
       return false
   }

@@ -37,9 +37,19 @@ const TEST_USERS = {
 async function globalSetup(config: FullConfig) {
   console.log('Starting global setup...');
 
-  const baseURL = config.projects[0]?.use?.baseURL || 'http://localhost:3000';
+  // Get base URL from config (must be set via PLAYWRIGHT_BASE_URL)
+  const baseURL = config.projects[0]?.use?.baseURL;
 
-  // Step 1: Seed test data
+  if (!baseURL) {
+    throw new Error(
+      'PLAYWRIGHT_BASE_URL environment variable is required. ' +
+        'Set it to your deployed cloud environment URL (e.g., https://test.thestai.com)'
+    );
+  }
+
+  console.log(`Running E2E tests against: ${baseURL}`);
+
+  // Step 1: Seed test data to cloud database
   console.log('Seeding test database...');
   try {
     await seedTestData();

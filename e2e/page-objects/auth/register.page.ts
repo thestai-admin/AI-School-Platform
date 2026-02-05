@@ -48,9 +48,9 @@ export class RegisterPage extends BasePage {
     this.phoneInput = page.getByLabel(/phone/i).or(page.locator('input[name="phone"]'));
     this.submitButton = page.getByRole('button', { name: /create account/i });
     this.loginLink = page.getByRole('link', { name: /sign in/i });
-    // Error alert is a div with specific styling in actual UI
-    this.errorAlert = page.locator('.bg-red-50.border-red-200, [role="alert"]');
-    this.successAlert = page.locator('.text-green-700, .bg-green-50');
+    // Error alert is a div with bg-red-50 border border-red-200 styling
+    this.errorAlert = page.locator('.bg-red-50.border-red-200').or(page.locator('div.text-red-600'));
+    this.successAlert = page.locator('.text-green-700').or(page.locator('.bg-green-50'));
 
     // Role selection - actual UI uses Select dropdown with "I am a..." label
     this.roleSelect = page.locator('select[name="role"]');
@@ -63,8 +63,8 @@ export class RegisterPage extends BasePage {
     this.classSelect = page.getByLabel(/class|grade/i);
 
     // Success state - shown after successful registration
-    this.successScreen = page.locator('.text-green-700').filter({ hasText: 'Check Your Email' });
-    this.successTitle = page.getByText('Check Your Email!');
+    this.successScreen = page.locator('[class*="green"]').filter({ hasText: 'Check Your Email' });
+    this.successTitle = page.getByRole('heading', { name: /check your email/i }).or(page.getByText('Check Your Email!'));
   }
 
   get path(): string {
@@ -142,7 +142,8 @@ export class RegisterPage extends BasePage {
   async expectTeacherPendingApproval(): Promise<void> {
     // Teachers see the success screen with note about admin approval
     await expect(this.successTitle).toBeVisible({ timeout: 10000 });
-    await expect(this.page.getByText(/admin.*approval|administrator.*approval/i)).toBeVisible();
+    // The note says "Wait for admin approval (teachers only)" or "Note for Teachers: ...administrator"
+    await expect(this.page.getByText(/admin.*approval|administrator|Note for Teachers/i)).toBeVisible();
   }
 
   async expectStudentVerifyEmail(): Promise<void> {
@@ -151,7 +152,7 @@ export class RegisterPage extends BasePage {
   }
 
   async expectDuplicateEmailError(): Promise<void> {
-    await this.expectRegistrationError(/email.*already|already.*registered|exists/i);
+    await this.expectRegistrationError(/email.*already|already.*registered|exists|already in use/i);
   }
 
   async expectPasswordValidationError(): Promise<void> {

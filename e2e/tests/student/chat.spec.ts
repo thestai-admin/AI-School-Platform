@@ -2,8 +2,7 @@ import { test, expect } from '@playwright/test';
 import { LoginPage } from '../../page-objects/auth/login.page';
 import { StudentChatPage } from '../../page-objects/student/chat.page';
 
-// Skip entire chat test suite - requires chat page UI fixes
-test.describe.skip('Student AI Chat', () => {
+test.describe('Student AI Chat', () => {
   let loginPage: LoginPage;
   let chatPage: StudentChatPage;
 

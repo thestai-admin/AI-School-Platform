@@ -4,22 +4,17 @@
 
 /**
  * Extract school slug from hostname
- * @param host - The hostname (e.g., "school1.aischool.com" or "localhost:3000")
+ * @param host - The hostname (e.g., "school1.thestai.com")
  * @returns The school slug or null if on main domain
  */
 export function getSchoolSlugFromHost(host: string): string | null {
   // Remove port if present
   const hostname = host.split(':')[0]
 
-  // Handle localhost for development
-  if (hostname === 'localhost' || hostname === '127.0.0.1') {
-    return null
-  }
-
   // Split hostname into parts
   const parts = hostname.split('.')
 
-  // Check if it's a subdomain (e.g., school1.aischool.com has 3+ parts)
+  // Check if it's a subdomain (e.g., school1.thestai.com has 3+ parts)
   // Exclude 'www' as a valid school slug
   if (parts.length >= 3 && parts[0] !== 'www') {
     return parts[0].toLowerCase()
@@ -61,12 +56,11 @@ export function generateSlugFromName(name: string): string {
 /**
  * Build the full URL for a school's subdomain
  * @param slug - The school slug
- * @param baseDomain - The base domain (e.g., "aischool.com")
- * @returns The full URL (e.g., "https://school1.aischool.com")
+ * @param baseDomain - The base domain (e.g., "thestai.com")
+ * @returns The full URL (e.g., "https://school1.thestai.com")
  */
 export function buildSchoolUrl(slug: string, baseDomain: string): string {
-  const protocol = baseDomain.includes('localhost') ? 'http' : 'https'
-  return `${protocol}://${slug}.${baseDomain}`
+  return `https://${slug}.${baseDomain}`
 }
 
 // Reserved slugs that cannot be used by schools

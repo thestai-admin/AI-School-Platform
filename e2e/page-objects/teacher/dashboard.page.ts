@@ -27,35 +27,27 @@ export class TeacherDashboardPage extends BasePage {
   constructor(page: Page) {
     super(page);
 
-    // Navigation links
-    this.lessonsLink = page.getByRole('link', { name: /lessons/i });
-    this.worksheetsLink = page.getByRole('link', { name: /worksheets/i });
-    this.homeworkLink = page.getByRole('link', { name: /homework/i });
-    this.diagramsLink = page.getByRole('link', { name: /diagrams/i });
-    this.trainingLink = page.getByRole('link', { name: /training/i });
-    this.communityLink = page.getByRole('link', { name: /community/i });
-    this.logoutButton = page.getByRole('button', { name: /logout|sign out/i });
+    // Navigation links - sidebar uses "Create Lesson", "Create Worksheet" labels
+    this.lessonsLink = page.getByRole('link', { name: /create lesson|lessons/i }).first();
+    this.worksheetsLink = page.getByRole('link', { name: /create worksheet|worksheets/i }).first();
+    this.homeworkLink = page.getByRole('link', { name: /homework/i }).first();
+    this.diagramsLink = page.getByRole('link', { name: /diagrams/i }).first();
+    this.trainingLink = page.getByRole('link', { name: /training/i }).first();
+    this.communityLink = page.getByRole('link', { name: /community/i }).first();
+    this.logoutButton = page.getByRole('button', { name: /logout/i });
 
-    // Dashboard elements
-    this.welcomeHeading = page.getByRole('heading', { name: /welcome|dashboard/i });
+    // Dashboard elements - actual UI uses "Welcome back, {name}!" heading
+    this.welcomeHeading = page.getByRole('heading', { name: /welcome|dashboard/i }).first();
     this.statsCards = page.locator('[data-testid="stats-card"], .stats-card, .stat-card');
     this.quickActions = page.locator('[data-testid="quick-actions"], .quick-actions');
     this.recentLessons = page.locator('[data-testid="recent-lessons"], .recent-lessons');
     this.pendingHomework = page.locator('[data-testid="pending-homework"], .pending-homework');
 
-    // Quick action buttons
-    this.createLessonButton = page.getByRole('button', { name: /create lesson|new lesson/i }).or(
-      page.getByRole('link', { name: /create lesson|new lesson/i })
-    );
-    this.createWorksheetButton = page.getByRole('button', { name: /create worksheet|new worksheet/i }).or(
-      page.getByRole('link', { name: /create worksheet|new worksheet/i })
-    );
-    this.assignHomeworkButton = page.getByRole('button', { name: /assign homework|new homework/i }).or(
-      page.getByRole('link', { name: /assign homework|new homework/i })
-    );
-    this.createDiagramButton = page.getByRole('button', { name: /create diagram|new diagram/i }).or(
-      page.getByRole('link', { name: /create diagram|new diagram/i })
-    );
+    // Quick action buttons - these are links in cards on the dashboard
+    this.createLessonButton = page.getByRole('link', { name: /create lesson plan|create lesson|new lesson/i }).first();
+    this.createWorksheetButton = page.getByRole('link', { name: /generate worksheet|create worksheet|new worksheet/i }).first();
+    this.assignHomeworkButton = page.getByRole('link', { name: /assign homework|new homework/i }).first();
+    this.createDiagramButton = page.getByRole('link', { name: /create diagram|new diagram/i }).first();
   }
 
   get path(): string {
@@ -136,8 +128,10 @@ export class TeacherDashboardPage extends BasePage {
   }
 
   async expectTeacherNavigation(): Promise<void> {
+    // Sidebar has "Create Lesson", "Create Worksheet" links
     await expect(this.lessonsLink).toBeVisible();
     await expect(this.worksheetsLink).toBeVisible();
-    await expect(this.homeworkLink).toBeVisible();
+    // Students link exists in sidebar
+    await expect(this.page.getByRole('link', { name: /students/i }).first()).toBeVisible();
   }
 }

@@ -6,7 +6,11 @@ export abstract class BasePage {
 
   constructor(page: Page) {
     this.page = page;
-    this.baseURL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3000';
+    const baseURL = process.env.PLAYWRIGHT_BASE_URL;
+    if (!baseURL) {
+      throw new Error('PLAYWRIGHT_BASE_URL environment variable is required');
+    }
+    this.baseURL = baseURL;
   }
 
   // Abstract method - each page must define its own path

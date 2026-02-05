@@ -26,32 +26,26 @@ export class StudentDashboardPage extends BasePage {
   constructor(page: Page) {
     super(page);
 
-    // Navigation links
-    this.chatLink = page.getByRole('link', { name: /chat|ai tutor/i });
-    this.worksheetsLink = page.getByRole('link', { name: /worksheets/i });
-    this.homeworkLink = page.getByRole('link', { name: /homework/i });
-    this.progressLink = page.getByRole('link', { name: /progress/i });
-    this.diagramsLink = page.getByRole('link', { name: /diagrams/i });
-    this.studyCompanionLink = page.getByRole('link', { name: /study companion|study/i });
-    this.logoutButton = page.getByRole('button', { name: /logout|sign out/i });
+    // Navigation links - sidebar uses "Ask Doubt" for chat, "Practice" for worksheets
+    this.chatLink = page.getByRole('link', { name: /ask doubt|chat|ai tutor/i }).first();
+    this.worksheetsLink = page.getByRole('link', { name: /practice|worksheets/i }).first();
+    this.homeworkLink = page.getByRole('link', { name: /homework/i }).first();
+    this.progressLink = page.getByRole('link', { name: /progress|analytics/i }).first();
+    this.diagramsLink = page.getByRole('link', { name: /diagrams/i }).first();
+    this.studyCompanionLink = page.getByRole('link', { name: /ai companion|study companion|study/i }).first();
+    this.logoutButton = page.getByRole('button', { name: /logout/i });
 
-    // Dashboard elements
-    this.welcomeHeading = page.getByRole('heading', { name: /welcome|dashboard/i });
+    // Dashboard elements - actual UI uses "Hello, {name}!" heading
+    this.welcomeHeading = page.getByRole('heading', { name: /hello|welcome|dashboard/i }).first();
     this.statsCards = page.locator('[data-testid="stats-card"], .stats-card, .stat-card');
     this.pendingHomework = page.locator('[data-testid="pending-homework"], .pending-homework');
     this.recentProgress = page.locator('[data-testid="recent-progress"], .recent-progress');
     this.upcomingDeadlines = page.locator('[data-testid="upcoming-deadlines"], .upcoming-deadlines');
 
-    // Quick action buttons
-    this.startChatButton = page.getByRole('button', { name: /start chat|ask ai|chat with ai/i }).or(
-      page.getByRole('link', { name: /start chat|ask ai|chat with ai/i })
-    );
-    this.viewHomeworkButton = page.getByRole('button', { name: /view homework|my homework/i }).or(
-      page.getByRole('link', { name: /view homework|my homework/i })
-    );
-    this.practiceButton = page.getByRole('button', { name: /practice|start practice/i }).or(
-      page.getByRole('link', { name: /practice|start practice/i })
-    );
+    // Quick action buttons - these are links in cards on the dashboard
+    this.startChatButton = page.getByRole('link', { name: /ask a doubt|ask doubt|start chat|ask ai/i }).first();
+    this.viewHomeworkButton = page.getByRole('link', { name: /view homework|my homework|homework/i }).first();
+    this.practiceButton = page.getByRole('link', { name: /practice worksheets|practice|start practice/i }).first();
   }
 
   get path(): string {
@@ -75,8 +69,15 @@ export class StudentDashboardPage extends BasePage {
   }
 
   async navigateToProgress(): Promise<void> {
-    await this.progressLink.click();
-    await this.page.waitForURL(/\/student\/progress/);
+    // Try to click the progress link from dashboard card first, or analytics link from sidebar
+    const progressCardLink = this.page.getByRole('link', { name: /my progress/i });
+    if (await progressCardLink.isVisible().catch(() => false)) {
+      await progressCardLink.click();
+      await this.page.waitForURL(/\/student\/progress/);
+    } else {
+      await this.progressLink.click();
+      await this.page.waitForURL(/\/student\/(progress|analytics)/);
+    }
   }
 
   async navigateToDiagrams(): Promise<void> {
@@ -128,8 +129,10 @@ export class StudentDashboardPage extends BasePage {
   }
 
   async expectStudentNavigation(): Promise<void> {
+    // Sidebar has "Ask Doubt", "Practice", "Analytics" links
     await expect(this.chatLink).toBeVisible();
-    await expect(this.homeworkLink).toBeVisible();
+    await expect(this.worksheetsLink).toBeVisible();
+    // Progress/Analytics link
     await expect(this.progressLink).toBeVisible();
   }
 

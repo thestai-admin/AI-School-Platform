@@ -131,5 +131,9 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
 
 // Helper to get base URL for email links
 export function getBaseUrl(): string {
-  return process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+  const url = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL
+  if (!url) {
+    throw new Error('NEXTAUTH_URL or NEXT_PUBLIC_APP_URL environment variable is required')
+  }
+  return url
 }

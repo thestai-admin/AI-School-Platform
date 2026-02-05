@@ -17,11 +17,15 @@ on:
           - firefox
           - webkit
           - all
+      environment:
+        description: 'Target environment URL'
+        required: false
+        default: ''
+        type: string
 
 env:
   CI: true
   CLEAN_TEST_DATA: true
-  PLAYWRIGHT_BASE_URL: http://localhost:3000
 
 jobs:
   e2e-tests:
@@ -29,42 +33,42 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: ai_school_test
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
     env:
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ai_school_test
-      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/ai_school_test
-      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ai_school_test
-      NEXTAUTH_SECRET: test-secret-for-ci-only
-      NEXTAUTH_URL: http://localhost:3000
+      # Cloud database connection (set via repository secrets)
+      DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
+      DIRECT_URL: ${{ secrets.TEST_DATABASE_URL }}
+      TEST_DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
+      NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+      NEXTAUTH_URL: ${{ secrets.PLAYWRIGHT_BASE_URL }}
+      # Target cloud environment for E2E tests
+      PLAYWRIGHT_BASE_URL: ${{ github.event.inputs.environment || secrets.PLAYWRIGHT_BASE_URL }}
       # Test user credentials
-      TEST_ADMIN_EMAIL: test-admin@e2e.test
-      TEST_ADMIN_PASSWORD: TestAdmin123!
-      TEST_TEACHER_EMAIL: test-teacher@e2e.test
-      TEST_TEACHER_PASSWORD: TestTeacher123!
-      TEST_STUDENT_EMAIL: test-student@e2e.test
-      TEST_STUDENT_PASSWORD: TestStudent123!
-      TEST_PARENT_EMAIL: test-parent@e2e.test
-      TEST_PARENT_PASSWORD: TestParent123!
-      TEST_PENDING_TEACHER_EMAIL: test-pending-teacher@e2e.test
-      TEST_PENDING_TEACHER_PASSWORD: TestPendingTeacher123!
-      TEST_SCHOOL_SLUG: e2e-test-school
-      TEST_SCHOOL_NAME: E2E Test School
+      TEST_ADMIN_EMAIL: ${{ secrets.TEST_ADMIN_EMAIL || 'test-admin@e2e.test' }}
+      TEST_ADMIN_PASSWORD: ${{ secrets.TEST_ADMIN_PASSWORD || 'TestAdmin123!' }}
+      TEST_TEACHER_EMAIL: ${{ secrets.TEST_TEACHER_EMAIL || 'test-teacher@e2e.test' }}
+      TEST_TEACHER_PASSWORD: ${{ secrets.TEST_TEACHER_PASSWORD || 'TestTeacher123!' }}
+      TEST_STUDENT_EMAIL: ${{ secrets.TEST_STUDENT_EMAIL || 'test-student@e2e.test' }}
+      TEST_STUDENT_PASSWORD: ${{ secrets.TEST_STUDENT_PASSWORD || 'TestStudent123!' }}
+      TEST_PARENT_EMAIL: ${{ secrets.TEST_PARENT_EMAIL || 'test-parent@e2e.test' }}
+      TEST_PARENT_PASSWORD: ${{ secrets.TEST_PARENT_PASSWORD || 'TestParent123!' }}
+      TEST_PENDING_TEACHER_EMAIL: ${{ secrets.TEST_PENDING_TEACHER_EMAIL || 'test-pending-teacher@e2e.test' }}
+      TEST_PENDING_TEACHER_PASSWORD: ${{ secrets.TEST_PENDING_TEACHER_PASSWORD || 'TestPendingTeacher123!' }}
+      TEST_SCHOOL_SLUG: ${{ secrets.TEST_SCHOOL_SLUG || 'e2e-test-school' }}
+      TEST_SCHOOL_NAME: ${{ secrets.TEST_SCHOOL_NAME || 'E2E Test School' }}
 
     steps:
+      - name: Validate required secrets
+        run: |
+          if [ -z "${{ secrets.PLAYWRIGHT_BASE_URL }}" ] && [ -z "${{ github.event.inputs.environment }}" ]; then
+            echo "Error: PLAYWRIGHT_BASE_URL secret is required for E2E tests"
+            echo "Set it to your deployed cloud environment URL (e.g., https://test.thestai.com)"
+            exit 1
+          fi
+          if [ -z "${{ secrets.TEST_DATABASE_URL }}" ]; then
+            echo "Error: TEST_DATABASE_URL secret is required for seeding test data"
+            exit 1
+          fi
+
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -87,18 +91,10 @@ jobs:
         working-directory: ai-school-platform
         run: npx prisma generate
 
-      - name: Run database migrations
-        working-directory: ai-school-platform
-        run: npx prisma migrate deploy
-
-      - name: Seed database with subjects
+      - name: Seed test data to cloud database
         working-directory: ai-school-platform
         run: npx prisma db seed
         continue-on-error: true
-
-      - name: Build application
-        working-directory: ai-school-platform
-        run: npm run build
 
       - name: Run E2E tests (Chromium)
         if: ${{ github.event.inputs.browser == 'chromium' || github.event.inputs.browser == 'all' || github.event.inputs.browser == '' }}
@@ -144,39 +140,28 @@ jobs:
       matrix:
         shard: [1/4, 2/4, 3/4, 4/4]
 
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: ai_school_test
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
     env:
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ai_school_test
-      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/ai_school_test
-      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ai_school_test
-      NEXTAUTH_SECRET: test-secret-for-ci-only
-      NEXTAUTH_URL: http://localhost:3000
-      TEST_ADMIN_EMAIL: test-admin@e2e.test
-      TEST_ADMIN_PASSWORD: TestAdmin123!
-      TEST_TEACHER_EMAIL: test-teacher@e2e.test
-      TEST_TEACHER_PASSWORD: TestTeacher123!
-      TEST_STUDENT_EMAIL: test-student@e2e.test
-      TEST_STUDENT_PASSWORD: TestStudent123!
-      TEST_PARENT_EMAIL: test-parent@e2e.test
-      TEST_PARENT_PASSWORD: TestParent123!
-      TEST_PENDING_TEACHER_EMAIL: test-pending-teacher@e2e.test
-      TEST_PENDING_TEACHER_PASSWORD: TestPendingTeacher123!
-      TEST_SCHOOL_SLUG: e2e-test-school
-      TEST_SCHOOL_NAME: E2E Test School
+      # Cloud database connection (set via repository secrets)
+      DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
+      DIRECT_URL: ${{ secrets.TEST_DATABASE_URL }}
+      TEST_DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
+      NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+      NEXTAUTH_URL: ${{ secrets.PLAYWRIGHT_BASE_URL }}
+      # Target cloud environment for E2E tests
+      PLAYWRIGHT_BASE_URL: ${{ secrets.PLAYWRIGHT_BASE_URL }}
+      # Test user credentials
+      TEST_ADMIN_EMAIL: ${{ secrets.TEST_ADMIN_EMAIL || 'test-admin@e2e.test' }}
+      TEST_ADMIN_PASSWORD: ${{ secrets.TEST_ADMIN_PASSWORD || 'TestAdmin123!' }}
+      TEST_TEACHER_EMAIL: ${{ secrets.TEST_TEACHER_EMAIL || 'test-teacher@e2e.test' }}
+      TEST_TEACHER_PASSWORD: ${{ secrets.TEST_TEACHER_PASSWORD || 'TestTeacher123!' }}
+      TEST_STUDENT_EMAIL: ${{ secrets.TEST_STUDENT_EMAIL || 'test-student@e2e.test' }}
+      TEST_STUDENT_PASSWORD: ${{ secrets.TEST_STUDENT_PASSWORD || 'TestStudent123!' }}
+      TEST_PARENT_EMAIL: ${{ secrets.TEST_PARENT_EMAIL || 'test-parent@e2e.test' }}
+      TEST_PARENT_PASSWORD: ${{ secrets.TEST_PARENT_PASSWORD || 'TestParent123!' }}
+      TEST_PENDING_TEACHER_EMAIL: ${{ secrets.TEST_PENDING_TEACHER_EMAIL || 'test-pending-teacher@e2e.test' }}
+      TEST_PENDING_TEACHER_PASSWORD: ${{ secrets.TEST_PENDING_TEACHER_PASSWORD || 'TestPendingTeacher123!' }}
+      TEST_SCHOOL_SLUG: ${{ secrets.TEST_SCHOOL_SLUG || 'e2e-test-school' }}
+      TEST_SCHOOL_NAME: ${{ secrets.TEST_SCHOOL_NAME || 'E2E Test School' }}
 
     steps:
       - name: Checkout code
@@ -201,18 +186,10 @@ jobs:
         working-directory: ai-school-platform
         run: npx prisma generate
 
-      - name: Run database migrations
-        working-directory: ai-school-platform
-        run: npx prisma migrate deploy
-
-      - name: Seed database with subjects
+      - name: Seed test data to cloud database
         working-directory: ai-school-platform
         run: npx prisma db seed
         continue-on-error: true
-
-      - name: Build application
-        working-directory: ai-school-platform
-        run: npm run build
 
       - name: Run E2E tests (Shard ${{ matrix.shard }})
         working-directory: ai-school-platform
