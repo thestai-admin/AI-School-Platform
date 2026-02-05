@@ -19,13 +19,10 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status') as UserStatus | null
     const pending = searchParams.get('pending')
+    const search = searchParams.get('search')
 
     // Build where clause
-    const whereClause: {
-      schoolId: string | undefined
-      role: 'TEACHER'
-      status?: UserStatus
-    } = {
+    const whereClause: Record<string, unknown> = {
       schoolId: session.user.schoolId,
       role: 'TEACHER',
     }
@@ -35,6 +32,14 @@ export async function GET(request: NextRequest) {
       whereClause.status = UserStatus.PENDING_APPROVAL
     } else if (status && Object.values(UserStatus).includes(status)) {
       whereClause.status = status
+    }
+
+    // Search by name or email
+    if (search) {
+      whereClause.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+      ]
     }
 
     const teachers = await prisma.user.findMany({

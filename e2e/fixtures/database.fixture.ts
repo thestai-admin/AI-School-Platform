@@ -1,4 +1,4 @@
-import { PrismaClient, UserRole, UserStatus, ProductTier } from '@prisma/client';
+import { PrismaClient, UserRole, UserStatus, ProductTier, Difficulty, Language } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
@@ -207,6 +207,212 @@ export async function seedTestData(): Promise<TestData> {
     };
   }
 
+  // --- Enhanced seed data for E2E tests ---
+
+  const teacherId = users.teacher.id;
+  const mathSubjectId = subjects[0].id;
+  const studentRecord = await prisma.student.findUnique({
+    where: { userId: users.student.id },
+  });
+
+  // Seed a sample lesson
+  const existingLesson = await prisma.lesson.findFirst({
+    where: { teacherId, topic: 'E2E Test: Fractions' },
+  });
+  if (!existingLesson) {
+    await prisma.lesson.create({
+      data: {
+        topic: 'E2E Test: Fractions',
+        generatedPlan: {
+          objectives: ['Understand fractions', 'Add simple fractions'],
+          activities: [
+            { name: 'Introduction', duration: 10, description: 'Explain what fractions are' },
+            { name: 'Practice', duration: 20, description: 'Solve fraction problems' },
+          ],
+          assessment: 'Quiz on adding fractions',
+        },
+        language: Language.ENGLISH,
+        date: new Date(),
+        status: 'published',
+        teacherId,
+        classId: testClass.id,
+        subjectId: mathSubjectId,
+      },
+    });
+  }
+
+  // Seed a sample worksheet
+  const existingWorksheet = await prisma.worksheet.findFirst({
+    where: { createdById: teacherId, title: 'E2E Test: Math Worksheet' },
+  });
+  let worksheetId = existingWorksheet?.id;
+  if (!existingWorksheet) {
+    const ws = await prisma.worksheet.create({
+      data: {
+        title: 'E2E Test: Math Worksheet',
+        questions: [
+          { id: 'q1', question: 'What is 5 + 3?', type: 'MCQ', options: ['6', '7', '8', '9'], correctAnswer: '8', marks: 2 },
+          { id: 'q2', question: 'What is 10 - 4?', type: 'MCQ', options: ['5', '6', '7', '8'], correctAnswer: '6', marks: 2 },
+          { id: 'q3', question: 'Fill in the blank: 3 x __ = 12', type: 'FILL_BLANK', correctAnswer: '4', marks: 2 },
+          { id: 'q4', question: 'What is the square root of 16?', type: 'SHORT_ANSWER', correctAnswer: '4', marks: 2 },
+          { id: 'q5', question: 'Is 7 a prime number?', type: 'MCQ', options: ['Yes', 'No'], correctAnswer: 'Yes', marks: 2 },
+        ],
+        difficulty: Difficulty.MEDIUM,
+        language: Language.ENGLISH,
+        createdById: teacherId,
+        classId: testClass.id,
+        subjectId: mathSubjectId,
+      },
+    });
+    worksheetId = ws.id;
+  }
+
+  // Seed a homework assignment
+  const existingHomework = await prisma.homework.findFirst({
+    where: { teacherId, title: 'E2E Test: Math Homework' },
+  });
+  let homeworkId = existingHomework?.id;
+  if (!existingHomework) {
+    const hw = await prisma.homework.create({
+      data: {
+        title: 'E2E Test: Math Homework',
+        instructions: 'Complete all questions. Show your working.',
+        questions: [
+          { id: 'hw1', question: 'Solve: 15 + 27', type: 'SHORT_ANSWER', correctAnswer: '42', maxMarks: 5, topic: 'Addition' },
+          { id: 'hw2', question: 'What is 8 x 7?', type: 'MCQ', options: ['54', '56', '58', '64'], correctAnswer: '56', maxMarks: 5, topic: 'Multiplication' },
+          { id: 'hw3', question: 'Write 3/4 as a decimal', type: 'SHORT_ANSWER', correctAnswer: '0.75', maxMarks: 5, topic: 'Fractions' },
+        ],
+        totalMarks: 15,
+        difficulty: Difficulty.MEDIUM,
+        language: Language.ENGLISH,
+        dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
+        teacherId,
+        classId: testClass.id,
+        subjectId: mathSubjectId,
+      },
+    });
+    homeworkId = hw.id;
+  }
+
+  // Seed a homework submission from student
+  if (homeworkId && studentRecord) {
+    const existingSubmission = await prisma.homeworkSubmission.findUnique({
+      where: { studentId_homeworkId: { studentId: studentRecord.id, homeworkId } },
+    });
+    if (!existingSubmission) {
+      await prisma.homeworkSubmission.create({
+        data: {
+          answers: [
+            { questionId: 'hw1', answer: '42' },
+            { questionId: 'hw2', answer: '56' },
+            { questionId: 'hw3', answer: '0.75' },
+          ],
+          status: 'SUBMITTED',
+          submittedAt: new Date(),
+          studentId: studentRecord.id,
+          homeworkId,
+        },
+      });
+    }
+  }
+
+  // Seed a diagram
+  const existingDiagram = await prisma.diagram.findFirst({
+    where: { createdById: teacherId, title: 'E2E Test: Math Flowchart' },
+  });
+  if (!existingDiagram) {
+    await prisma.diagram.create({
+      data: {
+        title: 'E2E Test: Math Flowchart',
+        description: 'A flowchart for solving math problems',
+        type: 'FLOWCHART',
+        visibility: 'CLASS',
+        nodes: [
+          { id: 'n1', type: 'start-end', position: { x: 100, y: 50 }, data: { label: 'Start' } },
+          { id: 'n2', type: 'process', position: { x: 100, y: 150 }, data: { label: 'Read Problem' } },
+          { id: 'n3', type: 'decision', position: { x: 100, y: 250 }, data: { label: 'Understand?' } },
+          { id: 'n4', type: 'start-end', position: { x: 100, y: 350 }, data: { label: 'Solve' } },
+        ],
+        edges: [
+          { id: 'e1-2', source: 'n1', target: 'n2' },
+          { id: 'e2-3', source: 'n2', target: 'n3' },
+          { id: 'e3-4', source: 'n3', target: 'n4' },
+        ],
+        viewport: { x: 0, y: 0, zoom: 1 },
+        createdById: teacherId,
+        schoolId: school.id,
+        classId: testClass.id,
+      },
+    });
+  }
+
+  // Seed training category and module
+  let trainingCategory = await prisma.trainingCategory.findFirst({
+    where: { name: 'E2E Test: Teaching Methods' },
+  });
+  if (!trainingCategory) {
+    trainingCategory = await prisma.trainingCategory.create({
+      data: {
+        name: 'E2E Test: Teaching Methods',
+        description: 'Modern teaching methodologies for effective learning',
+        icon: 'book',
+        order: 1,
+      },
+    });
+  }
+
+  const existingModule = await prisma.trainingModule.findFirst({
+    where: { title: 'E2E Test: Active Learning Techniques' },
+  });
+  if (!existingModule) {
+    await prisma.trainingModule.create({
+      data: {
+        title: 'E2E Test: Active Learning Techniques',
+        description: 'Learn how to implement active learning in your classroom',
+        subject: 'Mathematics',
+        gradeRange: '1-10',
+        content: {
+          sections: [
+            { title: 'Introduction', body: 'Active learning engages students directly in the learning process.' },
+            { title: 'Techniques', body: 'Group work, discussions, problem-solving activities.' },
+          ],
+        },
+        duration: 30,
+        difficulty: Difficulty.EASY,
+        language: Language.ENGLISH,
+        status: 'PUBLISHED',
+        tags: ['active-learning', 'engagement'],
+        categoryId: trainingCategory.id,
+      },
+    });
+  }
+
+  // Seed a community post
+  const existingPost = await prisma.communityPost.findFirst({
+    where: { authorId: teacherId, title: 'E2E Test: Teaching Tips for Math' },
+  });
+  if (!existingPost) {
+    await prisma.communityPost.create({
+      data: {
+        title: 'E2E Test: Teaching Tips for Math',
+        content: 'What are your best strategies for teaching fractions to Class 5 students?',
+        type: 'QUESTION',
+        subject: 'Mathematics',
+        tags: ['math', 'fractions', 'class-5'],
+        authorId: teacherId,
+        schoolId: school.id,
+      },
+    });
+  }
+
+  // Link parent to student
+  if (studentRecord && !studentRecord.parentId) {
+    await prisma.student.update({
+      where: { id: studentRecord.id },
+      data: { parentId: users.parent.id },
+    });
+  }
+
   console.log('Test data seeded successfully');
 
   return {
@@ -230,6 +436,58 @@ export async function cleanTestData(): Promise<void> {
   }
 
   // Delete in correct order to respect foreign key constraints
+
+  // Delete community data
+  const posts = await prisma.communityPost.findMany({ where: { schoolId: school.id }, select: { id: true } });
+  const postIds = posts.map(p => p.id);
+  if (postIds.length > 0) {
+    await prisma.communityVote.deleteMany({ where: { postId: { in: postIds } } });
+    await prisma.communityComment.deleteMany({ where: { postId: { in: postIds } } });
+    await prisma.communityPost.deleteMany({ where: { schoolId: school.id } });
+  }
+
+  // Delete training progress for school teachers
+  const schoolUsers = await prisma.user.findMany({ where: { schoolId: school.id }, select: { id: true } });
+  const userIds = schoolUsers.map(u => u.id);
+  if (userIds.length > 0) {
+    await prisma.teacherTrainingProgress.deleteMany({ where: { teacherId: { in: userIds } } });
+    await prisma.teacherCertification.deleteMany({ where: { teacherId: { in: userIds } } });
+  }
+
+  // Delete training modules and categories seeded by tests
+  await prisma.trainingModule.deleteMany({ where: { title: { startsWith: 'E2E Test:' } } });
+  await prisma.trainingCategory.deleteMany({ where: { name: { startsWith: 'E2E Test:' } } });
+
+  // Delete homework submissions, then homework
+  const homeworks = await prisma.homework.findMany({ where: { class: { schoolId: school.id } }, select: { id: true } });
+  const homeworkIds = homeworks.map(h => h.id);
+  if (homeworkIds.length > 0) {
+    await prisma.homeworkSubmission.deleteMany({ where: { homeworkId: { in: homeworkIds } } });
+    await prisma.homework.deleteMany({ where: { id: { in: homeworkIds } } });
+  }
+
+  // Delete worksheet responses, then worksheets
+  const worksheets = await prisma.worksheet.findMany({ where: { createdBy: { schoolId: school.id } }, select: { id: true } });
+  const worksheetIds = worksheets.map(w => w.id);
+  if (worksheetIds.length > 0) {
+    await prisma.worksheetResponse.deleteMany({ where: { worksheetId: { in: worksheetIds } } });
+    await prisma.worksheet.deleteMany({ where: { id: { in: worksheetIds } } });
+  }
+
+  // Delete lessons
+  await prisma.lesson.deleteMany({ where: { class: { schoolId: school.id } } });
+
+  // Delete student-related elite features
+  const students = await prisma.student.findMany({ where: { class: { schoolId: school.id } }, select: { id: true } });
+  const studentIds = students.map(s => s.id);
+  if (studentIds.length > 0) {
+    await prisma.studyAnalytics.deleteMany({ where: { studentId: { in: studentIds } } });
+    await prisma.practiceAttempt.deleteMany({ where: { studentId: { in: studentIds } } });
+    await prisma.personalizedLearningPath.deleteMany({ where: { studentId: { in: studentIds } } });
+    await prisma.studySession.deleteMany({ where: { studentId: { in: studentIds } } });
+    await prisma.chatHistory.deleteMany({ where: { studentId: { in: studentIds } } });
+    await prisma.studentProgress.deleteMany({ where: { studentId: { in: studentIds } } });
+  }
 
   // Delete students first (depends on users and classes)
   await prisma.student.deleteMany({

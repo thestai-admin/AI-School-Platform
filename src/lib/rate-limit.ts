@@ -28,6 +28,11 @@ export function checkRateLimit(
   identifier: string,
   config: RateLimitConfig
 ): { success: boolean; remaining: number; resetTime: number } {
+  // Bypass rate limiting in test environment
+  if (process.env.RATE_LIMIT_BYPASS === 'true') {
+    return { success: true, remaining: 999, resetTime: 0 };
+  }
+
   const now = Date.now()
   const entry = rateLimitStore.get(identifier)
 

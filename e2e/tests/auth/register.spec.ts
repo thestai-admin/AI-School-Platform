@@ -96,9 +96,7 @@ test.describe('Registration Page', () => {
   });
 
   test.describe('Teacher Registration', () => {
-    // Skip - rate limited by production API after global setup + auth tests
-    // Student registration validates the same flow; teacher role selection is UI-only
-    test.skip('should successfully register a new teacher', async () => {
+    test('should successfully register a new teacher', async () => {
       test.setTimeout(90000);
       const email = generateUniqueEmail('teacher-new');
 
@@ -112,8 +110,7 @@ test.describe('Registration Page', () => {
       await registerPage.expectTeacherPendingApproval();
     });
 
-    // Skip - rate limited by production API
-    test.skip('should show error for duplicate email', async () => {
+    test('should show error for duplicate email', async () => {
       const existingEmail = process.env.TEST_TEACHER_EMAIL || 'test-teacher@e2e.test';
 
       await registerPage.registerTeacher({

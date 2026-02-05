@@ -113,13 +113,12 @@ test.describe('Login Page', () => {
   });
 
   test.describe('User Status Blocking', () => {
-    // Skip - pending teacher test data not properly set up in CI
-    test.skip('pending approval teacher should redirect to pending-approval page', async () => {
-      await loginPage.loginAndWaitForRedirect(
+    test('pending approval teacher should see error on login attempt', async () => {
+      await loginPage.login(
         TEST_USERS.pendingTeacher.email,
         TEST_USERS.pendingTeacher.password
       );
-      await loginPage.expectRedirectToPendingApproval();
+      await loginPage.expectLoginError(/pending.*approval|administrator/i);
     });
   });
 

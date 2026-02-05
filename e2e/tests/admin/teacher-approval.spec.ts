@@ -60,8 +60,7 @@ test.describe('Admin Teacher Approval', () => {
       }
     });
 
-    // Skip - search functionality and pending teacher test data needs work
-    test.skip('should show existing pending teacher', async () => {
+    test('should show existing pending teacher', async () => {
       const pendingTeacherEmail = process.env.TEST_PENDING_TEACHER_EMAIL || 'test-pending-teacher@e2e.test';
 
       // Switch to pending tab if available
@@ -80,8 +79,8 @@ test.describe('Admin Teacher Approval', () => {
   });
 
   test.describe('Teacher Approval', () => {
-    // Skip approval tests - require complex UI interactions and depend on teacher registration working
-    test.skip('should approve a pending teacher', async ({ page, browser }) => {
+    test('should approve a pending teacher', async ({ page, browser }) => {
+      test.setTimeout(90000);
       // Create a new teacher for approval test
       const newTeacherEmail = generateUniqueEmail();
       const newTeacherPassword = 'ApprovalTest123!';
@@ -125,7 +124,8 @@ test.describe('Admin Teacher Approval', () => {
       }
     });
 
-    test.skip('should reject a pending teacher with reason', async ({ page, browser }) => {
+    test('should reject a pending teacher with reason', async ({ page, browser }) => {
+      test.setTimeout(90000);
       // Create a new teacher for rejection test
       const newTeacherEmail = generateUniqueEmail();
       const newTeacherPassword = 'RejectionTest123!';
@@ -193,8 +193,7 @@ test.describe('Admin Teacher Approval', () => {
   });
 
   test.describe('Search and Filter', () => {
-    // Skip - search input locator needs updating
-    test.skip('should search teachers by name', async () => {
+    test('should search teachers by name', async () => {
       const searchQuery = 'Test';
       await teachersPage.searchTeacher(searchQuery);
       await teachersPage.page.waitForTimeout(500);
@@ -203,8 +202,7 @@ test.describe('Admin Teacher Approval', () => {
       // (Implementation dependent)
     });
 
-    // Skip - search input locator needs updating
-    test.skip('should search teachers by email', async () => {
+    test('should search teachers by email', async () => {
       const teacherEmail = process.env.TEST_TEACHER_EMAIL || 'test-teacher@e2e.test';
       await teachersPage.searchTeacher(teacherEmail);
       await teachersPage.page.waitForTimeout(500);
@@ -214,21 +212,20 @@ test.describe('Admin Teacher Approval', () => {
   });
 
   test.describe('Teacher Status Transitions', () => {
-    // Skip - pending teacher test data not properly set up in CI
-    test.skip('pending teacher login should show pending approval', async ({ browser }) => {
+    test('pending teacher login should show pending approval error', async ({ browser }) => {
       const pendingEmail = process.env.TEST_PENDING_TEACHER_EMAIL || 'test-pending-teacher@e2e.test';
       const pendingPassword = process.env.TEST_PENDING_TEACHER_PASSWORD || 'TestPendingTeacher123!';
 
-      // Login as pending teacher in new context
+      // Login as pending teacher in new context - should show error, not redirect
       const pendingContext = await browser.newContext();
       const pendingPage = await pendingContext.newPage();
       const login = new LoginPage(pendingPage);
 
       await login.goto();
-      await login.loginAndWaitForRedirect(pendingEmail, pendingPassword);
+      await login.login(pendingEmail, pendingPassword);
 
-      // Should be on pending approval page
-      await login.expectRedirectToPendingApproval();
+      // Should show pending approval error on login page
+      await login.expectLoginError(/pending.*approval|administrator/i);
 
       await pendingContext.close();
     });

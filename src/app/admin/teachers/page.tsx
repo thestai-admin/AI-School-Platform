@@ -35,13 +35,17 @@ export default function AdminTeachersPage() {
   const [counts, setCounts] = useState<Counts>({ total: 0, pending: 0, active: 0, suspended: 0, rejected: 0 })
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<string>('all')
+  const [search, setSearch] = useState('')
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [rejectionReason, setRejectionReason] = useState('')
   const [showRejectModal, setShowRejectModal] = useState<string | null>(null)
 
   async function fetchTeachers() {
     try {
-      const params = filter !== 'all' ? `?status=${filter.toUpperCase()}` : ''
+      const queryParams = new URLSearchParams()
+      if (filter !== 'all') queryParams.set('status', filter.toUpperCase())
+      if (search.trim()) queryParams.set('search', search.trim())
+      const params = queryParams.toString() ? `?${queryParams.toString()}` : ''
       const res = await fetch(`/api/admin/teachers${params}`)
       if (res.ok) {
         const data = await res.json()
@@ -56,8 +60,11 @@ export default function AdminTeachersPage() {
   }
 
   useEffect(() => {
-    fetchTeachers()
-  }, [filter])
+    const debounceTimer = setTimeout(() => {
+      fetchTeachers()
+    }, search ? 300 : 0)
+    return () => clearTimeout(debounceTimer)
+  }, [filter, search])
 
   async function handleApprove(teacherId: string) {
     setActionLoading(teacherId)
@@ -130,6 +137,20 @@ export default function AdminTeachersPage() {
           <h1 className="text-2xl font-bold text-gray-900">Teacher Management</h1>
           <p className="text-gray-500">Manage teacher accounts and approvals</p>
         </div>
+      </div>
+
+      {/* Search */}
+      <div className="relative">
+        <input
+          type="text"
+          placeholder="Search by name or email..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full md:w-96 px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        />
+        <svg className="absolute left-3 top-2.5 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
       </div>
 
       {/* Stats Cards */}

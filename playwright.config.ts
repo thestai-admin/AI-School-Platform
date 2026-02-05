@@ -106,12 +106,12 @@ export default defineConfig({
   globalSetup: require.resolve('./e2e/global-setup.ts'),
   globalTeardown: require.resolve('./e2e/global-teardown.ts'),
 
-  /* Timeout for each test */
-  timeout: 30 * 1000,
+  /* Timeout for each test (60s to accommodate AI API calls) */
+  timeout: 60 * 1000,
 
   /* Timeout for each expect assertion */
   expect: {
-    timeout: 5 * 1000,
+    timeout: 10 * 1000,
   },
 
   /* Output directory for test artifacts */

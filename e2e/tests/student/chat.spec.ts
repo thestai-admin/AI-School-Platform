@@ -53,8 +53,8 @@ test.describe('Student AI Chat', () => {
       await chatPage.expectMessageSent(testMessage);
     });
 
-    // Skip AI-dependent tests - require AI provider configuration
-    test.skip('should receive AI response after sending message', async () => {
+    test('should receive AI response after sending message', async () => {
+      test.setTimeout(90000); // AI calls may take time
       const testMessage = 'What is 2 + 2?';
 
       await chatPage.sendMessageAndWaitForResponse(testMessage);
@@ -63,8 +63,8 @@ test.describe('Student AI Chat', () => {
       await chatPage.expectAIResponse();
     });
 
-    // Skip AI-dependent tests - require AI provider configuration
-    test.skip('should show loading state while waiting for response', async () => {
+    test('should show loading state while waiting for response', async () => {
+      test.setTimeout(90000);
       const testMessage = 'Explain photosynthesis';
 
       // Send message
@@ -98,9 +98,9 @@ test.describe('Student AI Chat', () => {
     });
   });
 
-  // Skip AI-dependent conversation tests - require AI provider configuration
-  test.describe.skip('Conversation Flow', () => {
+  test.describe('Conversation Flow', () => {
     test('should maintain conversation context', async () => {
+      test.setTimeout(90000);
       // Send first message
       await chatPage.sendMessageAndWaitForResponse('My name is TestStudent');
 
@@ -114,6 +114,7 @@ test.describe('Student AI Chat', () => {
     });
 
     test('should show multiple messages in order', async () => {
+      test.setTimeout(90000);
       // Send first message
       await chatPage.sendMessageAndWaitForResponse('First question');
 
@@ -138,9 +139,9 @@ test.describe('Student AI Chat', () => {
     });
   });
 
-  // Skip AI-dependent test - requires AI provider configuration
-  test.describe.skip('New Chat', () => {
+  test.describe('New Chat', () => {
     test('should start new chat if button available', async () => {
+      test.setTimeout(90000);
       // Send a message first
       await chatPage.sendMessageAndWaitForResponse('Initial message');
 
@@ -206,9 +207,9 @@ test.describe('Student AI Chat', () => {
     });
   });
 
-  // Skip AI-dependent test - requires AI provider configuration
-  test.describe.skip('Performance', () => {
+  test.describe('Performance', () => {
     test('should respond within reasonable time', async () => {
+      test.setTimeout(90000);
       const startTime = Date.now();
 
       await chatPage.sendMessageAndWaitForResponse('Quick test');

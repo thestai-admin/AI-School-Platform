@@ -277,8 +277,7 @@ test.describe('Role-Based Access Control (RBAC)', () => {
       expect(response.status()).toBe(401);
     });
 
-    // Skip - API returns 200 with empty array instead of 403
-    test.skip('student API request to teacher endpoint should return 403', async ({ page, request }) => {
+    test('student API request to teacher endpoint should return 403', async ({ page, request }) => {
       // Login as student first
       const loginPage = new LoginPage(page);
       await loginPage.goto();

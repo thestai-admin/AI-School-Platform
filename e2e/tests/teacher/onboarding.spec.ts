@@ -12,9 +12,7 @@ function generateUniqueEmail(): string {
 
 test.describe('Teacher Onboarding Flow', () => {
   test.describe('Complete Onboarding Journey', () => {
-    // Skip - rate limited by production API after global setup + parallel auth tests
-    // Student onboarding validates the same registration flow
-    test.skip('new teacher should complete registration and see pending approval', async ({ page }) => {
+    test('new teacher should complete registration and see pending approval', async ({ page }) => {
       test.setTimeout(60000);
       const registerPage = new RegisterPage(page);
       const email = generateUniqueEmail();
@@ -32,8 +30,7 @@ test.describe('Teacher Onboarding Flow', () => {
       await expect(page.getByText(/admin.*approval|administrator|Note for Teachers/i)).toBeVisible();
     });
 
-    // Skip - pending teacher test data not properly set up in CI
-    test.skip('pending teacher should see approval message when logging in', async ({ page }) => {
+    test('pending teacher should see approval error when logging in', async ({ page }) => {
       const loginPage = new LoginPage(page);
 
       // Use the pending teacher test account
@@ -41,13 +38,10 @@ test.describe('Teacher Onboarding Flow', () => {
       const pendingPassword = process.env.TEST_PENDING_TEACHER_PASSWORD || 'TestPendingTeacher123!';
 
       await loginPage.goto();
-      await loginPage.loginAndWaitForRedirect(pendingEmail, pendingPassword);
+      await loginPage.login(pendingEmail, pendingPassword);
 
-      // Should be on pending approval page
-      await loginPage.expectRedirectToPendingApproval();
-
-      // Verify page content
-      await expect(page.getByText(/pending|approval|review/i).first()).toBeVisible();
+      // Credentials provider blocks PENDING_APPROVAL users with error message
+      await loginPage.expectLoginError(/pending.*approval|administrator/i);
     });
 
     test('approved teacher should access dashboard after login', async ({ page }) => {
@@ -121,8 +115,7 @@ test.describe('Teacher Onboarding Flow', () => {
       await expect(page).toHaveURL(/\/teacher\/worksheets/);
     });
 
-    // Skip - homework link not in teacher sidebar navigation
-    test.skip('teacher should be able to navigate to homework', async ({ page }) => {
+    test('teacher should be able to navigate to homework', async ({ page }) => {
       const loginPage = new LoginPage(page);
       const dashboardPage = new TeacherDashboardPage(page);
 

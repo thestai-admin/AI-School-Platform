@@ -32,6 +32,9 @@ const TEST_USERS = {
     password: process.env.TEST_PARENT_PASSWORD || 'TestParent123!',
     storageFile: 'parent.json',
   },
+  // Note: pendingTeacher is seeded in the DB but NOT authenticated here.
+  // The credentials provider blocks PENDING_APPROVAL users from logging in
+  // (shows error message instead of redirecting). Tests verify the error.
 };
 
 async function globalSetup(config: FullConfig) {

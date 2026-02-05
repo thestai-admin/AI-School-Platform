@@ -105,8 +105,7 @@ test.describe('Student Onboarding Flow', () => {
       await expect(page).toHaveURL(/\/student\/chat/);
     });
 
-    // Skip - homework link not in student sidebar navigation
-    test.skip('student should be able to navigate to homework', async ({ page }) => {
+    test('student should be able to navigate to homework', async ({ page }) => {
       const loginPage = new LoginPage(page);
       const dashboardPage = new StudentDashboardPage(page);
 
