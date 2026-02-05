@@ -93,14 +93,8 @@ test.describe('Student AI Chat', () => {
     });
 
     test('should not send empty message', async () => {
-      const initialUserCount = await chatPage.userMessages.count();
-
-      // Try to send empty message
-      await chatPage.sendButton.click();
-
-      // User message count should not increase
-      const finalUserCount = await chatPage.userMessages.count();
-      expect(finalUserCount).toBe(initialUserCount);
+      // Send button should be disabled when input is empty
+      await expect(chatPage.sendButton).toBeDisabled();
     });
   });
 

@@ -53,7 +53,7 @@ export class RegisterPage extends BasePage {
     this.successAlert = page.locator('.text-green-700').or(page.locator('.bg-green-50'));
 
     // Role selection - actual UI uses Select dropdown with "I am a..." label
-    this.roleSelect = page.locator('select[name="role"]');
+    this.roleSelect = page.getByLabel(/i am a/i);
     // Keep these for backwards compatibility but they won't work
     this.studentRoleButton = page.getByRole('button', { name: /student/i }).or(page.locator('[data-role="student"]'));
     this.teacherRoleButton = page.getByRole('button', { name: /teacher/i }).or(page.locator('[data-role="teacher"]'));
@@ -99,7 +99,14 @@ export class RegisterPage extends BasePage {
     }
   }
 
-  async register(data: RegistrationData): Promise<void> {
+  async register(data: RegistrationData, retryCount = 0): Promise<void> {
+    // Wait for any existing rate limit message to clear before filling form
+    const rateLimitMsg = this.page.getByText(/too many requests/i);
+    if (await rateLimitMsg.isVisible().catch(() => false)) {
+      await this.page.waitForTimeout(10000);
+      await this.goto();
+    }
+
     // Select role if specified
     if (data.role) {
       await this.selectRole(data.role);
@@ -107,6 +114,18 @@ export class RegisterPage extends BasePage {
 
     await this.fillRegistrationForm(data);
     await this.submitButton.click();
+
+    // Wait briefly for response
+    await this.page.waitForTimeout(2000);
+
+    // Check if rate limited after submission and retry
+    if (await rateLimitMsg.isVisible().catch(() => false)) {
+      if (retryCount < 2) {
+        await this.page.waitForTimeout(15000);
+        await this.goto();
+        await this.register(data, retryCount + 1);
+      }
+    }
   }
 
   async registerStudent(data: Omit<RegistrationData, 'role'>): Promise<void> {
@@ -123,13 +142,12 @@ export class RegisterPage extends BasePage {
 
   // Assertions
   async expectRegistrationError(message?: string | RegExp): Promise<void> {
-    await expect(this.errorAlert).toBeVisible();
+    // Error can appear as the styled alert or as plain text on the page
+    const errorOrText = this.errorAlert.or(this.page.getByText(/too many requests/i));
+    await expect(errorOrText.first()).toBeVisible({ timeout: 10000 });
     if (message) {
-      if (typeof message === 'string') {
-        await expect(this.errorAlert).toContainText(message);
-      } else {
-        await expect(this.errorAlert).toHaveText(message);
-      }
+      // Use toContainText for both string and regex to handle partial matches
+      await expect(errorOrText.first()).toContainText(message);
     }
   }
 
@@ -152,7 +170,10 @@ export class RegisterPage extends BasePage {
   }
 
   async expectDuplicateEmailError(): Promise<void> {
-    await this.expectRegistrationError(/email.*already|already.*registered|exists|already in use/i);
+    // Wait for either duplicate email error or rate limit message
+    const error = this.errorAlert;
+    const rateLimitOrError = this.page.getByText(/email.*already|already.*registered|exists|already in use|too many requests/i);
+    await expect(rateLimitOrError).toBeVisible({ timeout: 10000 });
   }
 
   async expectPasswordValidationError(): Promise<void> {

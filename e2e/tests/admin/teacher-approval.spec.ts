@@ -172,6 +172,7 @@ test.describe('Admin Teacher Approval', () => {
 
   test.describe('Post-Approval Login', () => {
     test('approved teacher should be able to login', async ({ browser }) => {
+      test.setTimeout(60000); // New context needs more time
       // Use the pre-approved test teacher
       const teacherEmail = process.env.TEST_TEACHER_EMAIL || 'test-teacher@e2e.test';
       const teacherPassword = process.env.TEST_TEACHER_PASSWORD || 'TestTeacher123!';

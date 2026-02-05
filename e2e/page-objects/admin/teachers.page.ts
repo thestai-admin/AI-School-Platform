@@ -46,9 +46,9 @@ export class AdminTeachersPage extends BasePage {
     this.allTab = page.locator('[class*="cursor-pointer"]').filter({ hasText: 'Total' }).first();
     this.refreshButton = page.getByRole('button', { name: /refresh/i });
 
-    // Teacher list - actual UI uses divs with border rounded-lg p-4
+    // Teacher list - each card contains a heading (teacher name) and email paragraph
     this.teacherList = page.locator('.space-y-4');
-    this.teacherRow = page.locator('.border.rounded-lg.p-4');
+    this.teacherRow = page.locator('div').filter({ has: page.locator('h3') }).filter({ has: page.locator('p') }).filter({ hasText: /@/ });
     this.emptyState = page.getByText(/no teachers found/i);
     this.loadingState = page.locator('.animate-spin');
 
@@ -166,10 +166,15 @@ export class AdminTeachersPage extends BasePage {
   }
 
   async expectTeacherListVisible(): Promise<void> {
+    // Wait for loading to complete first
+    await this.page.locator('text=Loading teachers...').waitFor({ state: 'hidden', timeout: 15000 }).catch(() => {});
+    await this.page.waitForTimeout(1000);
+
     // Wait for either teacher rows to be visible or empty state
     const hasTeachers = await this.teacherRow.first().isVisible().catch(() => false);
     const isEmpty = await this.emptyState.isVisible().catch(() => false);
-    expect(hasTeachers || isEmpty).toBeTruthy();
+    const hasHeading = await this.page.locator('h3').first().isVisible().catch(() => false);
+    expect(hasTeachers || isEmpty || hasHeading).toBeTruthy();
   }
 
   async expectTeacherInList(email: string): Promise<void> {

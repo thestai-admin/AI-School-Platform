@@ -13,11 +13,12 @@ function generateUniqueEmail(): string {
 test.describe('Student Onboarding Flow', () => {
   test.describe('Complete Onboarding Journey', () => {
     test('new student should complete registration', async ({ page }) => {
+      test.setTimeout(60000);
       const registerPage = new RegisterPage(page);
       const email = generateUniqueEmail();
       const password = 'SecureStudent123!';
 
-      // Step 1: Register as student
+      // Step 1: Register as student (page object handles rate limit waiting)
       await registerPage.goto();
       await registerPage.registerStudent({
         name: 'Onboarding Test Student',
@@ -26,8 +27,24 @@ test.describe('Student Onboarding Flow', () => {
         phone: '9876543213',
       });
 
-      // Step 2: Should see success screen with "Check Your Email!" message
-      // The actual UI shows a success screen instead of redirecting
+      // Step 2: Should see success screen
+      // If still rate limited after waiting, check and retry
+      const success = await page.getByText('Check Your Email!').isVisible({ timeout: 10000 }).catch(() => false);
+      if (!success) {
+        const rateLimited = await page.getByText(/too many requests/i).isVisible().catch(() => false);
+        if (rateLimited) {
+          // Wait longer for rate limit to expire and retry
+          await page.waitForTimeout(15000);
+          await registerPage.goto();
+          await registerPage.registerStudent({
+            name: 'Onboarding Test Student',
+            email: generateUniqueEmail(),
+            password,
+            phone: '9876543213',
+          });
+        }
+      }
+
       await expect(page.getByText('Check Your Email!')).toBeVisible({ timeout: 15000 });
     });
 
