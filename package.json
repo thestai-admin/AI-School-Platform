@@ -29,10 +29,10 @@
     "next": "16.1.1",
     "next-auth": "^4.24.13",
     "pg": "^8.16.3",
-    "prisma": "^5.22.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "reactflow": "^11.11.4",
+    "zod": "^4.3.6",
     "zustand": "^5.0.10"
   },
   "devDependencies": {
@@ -51,10 +51,14 @@
     "eslint": "^9",
     "eslint-config-next": "16.1.1",
     "jsdom": "^25.0.1",
+    "prisma": "^5.22.0",
     "tailwindcss": "^4",
     "tsx": "^4.21.0",
     "typescript": "^5",
     "uuid": "^11.1.0",
     "vitest": "^2.1.8"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }
